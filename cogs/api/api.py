@@ -1152,7 +1152,11 @@ class APICog(commands.Cog):
                     "tags": config.tags_enabled,
                 },
                 "settings": {
+                    "allow_prefix": config.allow_prefix,
+                    "send_not_allowed": config.send_not_allowed,
                     "loading_reaction": config.loading_reaction,
+                    "blocked_channels": [str(channel) for channel in config.blocked_channels],
+                    "blocked_roles": [str(role) for role in config.blocked_roles],
                     "delete_after_3_days": config.delete_after_3_days,
                 },
                 "prefixes": prefixes.prefixes,
@@ -1211,7 +1215,15 @@ class APICog(commands.Cog):
             db_config.leaderboard_enabled = validated_settings.modules.leaderboard
             db_config.tags_enabled = validated_settings.modules.tags
 
+            db_config.allow_prefix = validated_settings.settings.allow_prefix
+            db_config.send_not_allowed = validated_settings.settings.send_not_allowed
             db_config.loading_reaction = validated_settings.settings.loading_reaction
+            db_config.blocked_channels = [
+                int(channel) for channel in validated_settings.settings.blocked_channels
+            ]
+            db_config.blocked_roles = [
+                int(role) for role in validated_settings.settings.blocked_roles
+            ]
             db_config.delete_after_3_days = validated_settings.settings.delete_after_3_days
 
             prefixes.prefixes = validated_settings.prefixes

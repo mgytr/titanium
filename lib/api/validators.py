@@ -30,7 +30,11 @@ class ModuleModel(BaseModel):
 
 
 class SettingsModel(BaseModel):
+    allow_prefix: bool
+    send_not_allowed: bool
     loading_reaction: bool
+    blocked_channels: list[str] = Field(default_factory=list, max_length=100)
+    blocked_roles: list[str] = Field(default_factory=list, max_length=100)
     delete_after_3_days: bool
 
 

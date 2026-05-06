@@ -482,6 +482,63 @@ bot = TitaniumBot(
 )
 
 
+@bot.check
+async def check(ctx: commands.Context["TitaniumBot"]):
+    if ctx.interaction or not ctx.guild:
+        return True
+
+    config = await ctx.bot.fetch_guild_config(ctx.guild.id)
+
+    if not config:
+        return True
+
+    if not config.allow_prefix:
+        if not config.send_not_allowed:
+            return False
+
+        embed = discord.Embed(
+            title=f"{ctx.bot.error_emoji} Not Allowed",
+            description="Prefix commands have been disabled in this server.",
+            colour=discord.Colour.red(),
+        )
+        embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)
+
+        await ctx.reply(embed=embed)
+        return False
+
+    if ctx.channel.id in config.blocked_channels:
+        if not config.send_not_allowed:
+            return False
+
+        embed = discord.Embed(
+            title=f"{ctx.bot.error_emoji} Not Allowed",
+            description="You are not allowed to run prefix commands in this channel.",
+            colour=discord.Colour.red(),
+        )
+        embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)
+
+        await ctx.reply(embed=embed)
+        return False
+
+    if isinstance(ctx.author, discord.Member) and any(
+        role.id in config.blocked_roles for role in ctx.author.roles
+    ):
+        if not config.send_not_allowed:
+            return False
+
+        embed = discord.Embed(
+            title=f"{ctx.bot.error_emoji} Not Allowed",
+            description="You have a role which blocks you from running prefix commands in this server.",
+            colour=discord.Colour.red(),
+        )
+        embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)
+
+        await ctx.reply(embed=embed)
+        return False
+
+    return True
+
+
 @bot.event
 async def on_command_error(ctx: commands.Context["TitaniumBot"], error: commands.CommandError):
     if (
