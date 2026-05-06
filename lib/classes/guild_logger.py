@@ -80,9 +80,9 @@ LOGGING_EVENTS = [
     LoggingType(event="soundboard_sound_create", name="Soundboard Sound Created", description="When a new soundboard sound is created.", category="Soundboard"),
     LoggingType(event="soundboard_sound_update", name="Soundboard Sound Updated", description="When a soundboard sound is edited.", category="Soundboard"),
     LoggingType(event="soundboard_sound_delete", name="Soundboard Sound Deleted", description="When a soundboard sound is deleted.", category="Soundboard"),
-    LoggingType(event="stage_instance_create", name="Stage Instance Created", description="When a user starts a stage instance.", category="Stage Instances"),
+    LoggingType(event="stage_instance_create", name="Stage Instance Started", description="When a user starts a stage instance.", category="Stage Instances"),
     LoggingType(event="stage_instance_update", name="Stage Instance Updated", description="When a stage instance is edited.", category="Stage Instances"),
-    LoggingType(event="stage_instance_delete", name="Stage Instance Deleted", description="When a user finishes a stage instance.", category="Stage Instances"),
+    LoggingType(event="stage_instance_delete", name="Stage Instance Finished", description="When a user finishes a stage instance.", category="Stage Instances"),
     LoggingType(event="thread_create", name="Thread Created", description="When a user creates a new thread.", category="Threads"),
     LoggingType(event="thread_update", name="Thread Updated", description="When a user edits a thread.", category="Threads"),
     LoggingType(event="thread_delete", name="Thread Deleted", description="When a thread is deleted.", category="Threads"),
@@ -294,14 +294,20 @@ class GuildLogger:
         return None
 
     async def _add_user_footer(
-        self, embed: discord.Embed, log: Optional[discord.AuditLogEntry]
+        self,
+        embed: discord.Embed,
+        log: Optional[discord.AuditLogEntry] = None,
+        user_id: Optional[int] = None,
     ) -> None:
-        if not log:
+        if not log or user_id:
             return
 
-        user = log.user
-        if not user and log.user_id:
-            user = await get_or_fetch_member(self.bot, log.guild, log.user_id)
+        if log:
+            user = log.user
+            if not user and log.user_id:
+                user = await get_or_fetch_member(self.bot, log.guild, log.user_id)
+        else:
+            user = await get_or_fetch_member(self.bot, self.guild, user_id)
 
         if user:
             embed.set_footer(text=f"@{user.name}", icon_url=user.display_avatar.url)
@@ -344,7 +350,7 @@ class GuildLogger:
 
         # server id - 1 = all channels
         embed.add_field(
-            name="New Channel Perms",
+            name="Channel Perms",
             value="\n".join(
                 str(self.bot.success_emoji if change.permission else self.bot.error_emoji)
                 + f" {change.target.mention if not isinstance(change.target, (discord.Object, discord.app_commands.AllChannels)) else ('All Channels' if change.id == event.guild.id - 1 else f'`{change.id}`')}"
@@ -356,7 +362,7 @@ class GuildLogger:
         )
 
         embed.add_field(
-            name="New Role Perms",
+            name="Role Perms",
             value="\n".join(
                 str(self.bot.success_emoji if change.permission else self.bot.error_emoji)
                 + f" {change.target.mention if not isinstance(change.target, (discord.Object, discord.app_commands.AllChannels)) else f'`{change.id}`'}"
@@ -368,7 +374,7 @@ class GuildLogger:
         )
 
         embed.add_field(
-            name="New User Perms",
+            name="User Perms",
             value="\n".join(
                 str(self.bot.success_emoji if change.permission else self.bot.error_emoji)
                 + f" {change.target.mention if not isinstance(change.target, (discord.Object, discord.app_commands.AllChannels)) else f'`{change.id}`'}"
@@ -395,15 +401,29 @@ class GuildLogger:
         if not self._exists_and_enabled("dc_automod_rule_create"):
             return
 
+        if rule.enabled:
+            status = f"{self.bot.success_emoji} Yes"
+        else:
+            status = f"{self.bot.error_emoji} No"
+
         embed = discord.Embed(
             title="AutoMod Rule Created",
-            description=f"**Name:** `{rule.name}`\n**ID:** `{rule.id}`",
+            description=f"**Name:** `{rule.name}`\n**ID:** `{rule.id}`\n**Trigger Type:** `{str(rule.trigger.type).split('.')[-1].replace('_', ' ').capitalize()}`\n**Enabled:** {status}",
             colour=discord.Colour.green(),
             timestamp=discord.utils.utcnow(),
         )
+        await self._add_user_footer(embed, user_id=rule.creator_id)
 
-        log = await self._get_audit_log_entry(discord.AuditLogAction.automod_rule_create)
-        await self._add_user_footer(embed, log)
+        if rule.actions:
+            embed.add_field(
+                name="Actions",
+                value="`"
+                + "`, `".join(
+                    str(action.type).split(".")[-1].replace("_", " ").capitalize()
+                    for action in rule.actions
+                )
+                + "`",
+            )
 
         assert self.config is not None and self.config.logging_settings is not None
         await self._send_to_webhook(
@@ -420,10 +440,21 @@ class GuildLogger:
 
         embed = discord.Embed(
             title="AutoMod Rule Deleted",
-            description=f"**Name:** `{rule.name}`\n**ID:** `{rule.id}`",
+            description=f"**Name:** `{rule.name}`\n**ID:** `{rule.id}`\n**Trigger Type:** `{str(rule.trigger.type).split('.')[-1].replace('_', ' ').capitalize()}`",
             colour=discord.Colour.red(),
             timestamp=discord.utils.utcnow(),
         )
+
+        if rule.actions:
+            embed.add_field(
+                name="Actions",
+                value="`"
+                + "`, `".join(
+                    str(action.type).split(".")[-1].replace("_", " ").capitalize()
+                    for action in rule.actions
+                )
+                + "`",
+            )
 
         log = await self._get_audit_log_entry(discord.AuditLogAction.automod_rule_delete)
         await self._add_user_footer(embed, log)
@@ -441,12 +472,28 @@ class GuildLogger:
         if not self._exists_and_enabled("dc_automod_rule_update"):
             return
 
+        if rule.enabled:
+            status = f"{self.bot.success_emoji} Yes"
+        else:
+            status = f"{self.bot.error_emoji} No"
+
         embed = discord.Embed(
-            title="AutoMod Rule Edited",
-            description=f"**Name:** `{rule.name}`\n**ID:** `{rule.id}`",
+            title="AutoMod Rule Updated",
+            description=f"**Name:** `{rule.name}`\n**ID:** `{rule.id}`\n**Trigger Type:** `{str(rule.trigger.type).split('.')[-1].replace('_', ' ').capitalize()}`\n**Enabled:** {status}",
             colour=discord.Colour.yellow(),
             timestamp=discord.utils.utcnow(),
         )
+
+        if rule.actions:
+            embed.add_field(
+                name="Actions",
+                value="`"
+                + "`, `".join(
+                    str(action.type).split(".")[-1].replace("_", " ").capitalize()
+                    for action in rule.actions
+                )
+                + "`",
+            )
 
         log = await self._get_audit_log_entry(discord.AuditLogAction.automod_rule_update)
         await self._add_user_footer(embed, log)
@@ -1885,7 +1932,7 @@ class GuildLogger:
             return
 
         embed = discord.Embed(
-            title="Stage Instance Created",
+            title="Stage Instance Started",
             description=(
                 f"**Topic:** `{instance.topic}`\n"
                 + f"**Channel:** {instance.channel.mention} (`#{instance.channel.name}`, `{instance.channel.id}`)\n"
@@ -1914,7 +1961,7 @@ class GuildLogger:
             return
 
         embed = discord.Embed(
-            title="Stage Instance Deleted",
+            title="Stage Instance Finished",
             description=(
                 f"**Topic:** `{instance.topic}`\n"
                 + f"**Channel:** {instance.channel.mention} (`#{instance.channel.name}`, `{instance.channel.id}`)\n"
