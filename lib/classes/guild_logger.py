@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
+from io import BytesIO
 from textwrap import shorten
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
@@ -201,6 +202,7 @@ class GuildLogger:
         embed: discord.Embed | None = None,
         embeds: list[discord.Embed] | None = None,
         view: discord.ui.View | None = None,
+        files: list[discord.File] = [],
     ) -> None:
         if url is None:
             return
@@ -219,6 +221,7 @@ class GuildLogger:
                         avatar_url=self.bot.user.display_avatar.url if self.bot.user else None,
                         embed=embed,
                         view=view,
+                        files=files,
                     )
                 elif embeds:
                     await webhook.send(
@@ -226,6 +229,7 @@ class GuildLogger:
                         avatar_url=self.bot.user.display_avatar.url if self.bot.user else None,
                         embeds=embeds,
                         view=view,
+                        files=files,
                     )
             else:
                 if embed:
@@ -233,12 +237,14 @@ class GuildLogger:
                         username=self.bot.user.name if self.bot.user else "Titanium",
                         avatar_url=self.bot.user.display_avatar.url if self.bot.user else None,
                         embed=embed,
+                        files=files,
                     )
                 elif embeds:
                     await webhook.send(
                         username=self.bot.user.name if self.bot.user else "Titanium",
                         avatar_url=self.bot.user.display_avatar.url if self.bot.user else None,
                         embeds=embeds,
+                        files=files,
                     )
 
             return
@@ -1454,11 +1460,52 @@ class GuildLogger:
         if not self._exists_and_enabled("message_bulk_delete"):
             return
 
+        channel = self.bot.get_channel(event.channel_id)
+        channel_str = ""
+        if channel and not isinstance(channel, discord.abc.PrivateChannel):
+            channel_str = f"`#{channel.name}`, `{channel.id}`"
+
         embed = discord.Embed(
             title=f"`{len(event.message_ids)}` Messages Bulk Deleted",
-            description=f"**Channel:** <#{event.channel_id}>\n",
+            description=f"**Channel:** <#{event.channel_id}> ({channel_str if channel_str else ''})\n",
             colour=discord.Colour.red(),
             timestamp=discord.utils.utcnow(),
+        )
+
+        guild = self.bot.get_guild(event.guild_id) if event.guild_id else None
+        guild_str = str(event.guild_id)
+        if guild:
+            guild_str = guild.name
+
+        text_file_time = discord.utils.utcnow().strftime("%Y/%m/%d %H:%M:%S")
+        text_file_contents = f"Titanium Bulk Delete Logs - {guild_str}\n{len(event.message_ids)} messages deleted at {text_file_time} UTC\nChannel: {channel_str.replace('`', '') if channel_str else event.channel_id}"
+
+        message_list: list[discord.Message | int] = []
+        for message_id in event.message_ids:
+            message = message_id
+            for cached_message in event.cached_messages:
+                if not cached_message.id == message_id:
+                    continue
+                message = cached_message
+            message_list.append(message)
+
+        def get_msg_id(m: discord.Message | int) -> int:
+            if isinstance(m, int):
+                return m
+            return m.id
+
+        message_list.sort(key=get_msg_id)
+        for message in message_list:
+            if isinstance(message, discord.Message):
+                text_file_contents += f"\n\n[{message.created_at.strftime('%Y/%m/%d %H:%M:%S')}] @{message.author.name} ({message.author.id}){f' (message has {len(message.attachments)} attachments)' if message.attachments else ''}\nMessage ID: {message.id}:\n{message.clean_content if message.clean_content else '(no content)'}"
+            else:
+                text_file_contents += f"\n\nMessage ID: {message}\nContent Unknown"
+
+        text_file_bytes = BytesIO(text_file_contents.encode())
+        text_file_bytes.seek(0)
+        text_file = discord.File(
+            fp=text_file_bytes,
+            filename=f"{guild_str.replace(' ', '')}_BulkDeleteLogs_{text_file_time.replace(' ', '_').replace('/', '-').replace(':', '-')}.txt",
         )
 
         log = await self._get_audit_log_entry(
@@ -1472,6 +1519,7 @@ class GuildLogger:
                 self.config.logging_settings.channels.get("message_bulk_delete")
             ),
             embed,
+            files=[text_file],
         )
 
     async def poll_create(self, message: discord.Message) -> None:
