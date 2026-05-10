@@ -679,6 +679,7 @@ class Tag(Base):
     is_user: Mapped[bool] = MappedColumn(Boolean, nullable=False)
     name: Mapped[str] = MappedColumn(String(length=80), nullable=False)
     content: Mapped[str] = MappedColumn(String(length=1024), nullable=False)
+    amount_used: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
 
 
 class GameStat(Base):

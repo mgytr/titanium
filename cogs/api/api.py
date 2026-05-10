@@ -1825,7 +1825,7 @@ class APICog(commands.Cog):
         await self.bot.refresh_guild_config_cache(guild.id)
         return web.Response(status=204)
 
-    async def cog_unload(self):
+    async def cog_unload(self) -> None:
         if self.server_task:
             self.server_task.cancel()
 

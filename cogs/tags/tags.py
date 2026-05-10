@@ -50,10 +50,6 @@ class TagOptionView(discord.ui.View):
 async def tag_autocomplete_base(
     bot: TitaniumBot, interaction: discord.Interaction["TitaniumBot"], current: str, verify: bool
 ) -> list[app_commands.Choice[str]]:
-    if not current:
-        return [
-            app_commands.Choice(name="Start typing to search for a server or user tag", value="")
-        ]
 
     server_tags_allowed = verify
     user_tags_allowed = True
@@ -71,14 +67,43 @@ async def tag_autocomplete_base(
 
     async with get_session() as session:
         if server_tags_allowed and interaction.guild:
-            stmt = select(Tag).where(Tag.guild_id == interaction.guild.id)
+            stmt = (
+                select(Tag)
+                .where(Tag.guild_id == interaction.guild.id)
+                .order_by(Tag.amount_used.desc())
+            )
             results = await session.execute(stmt)
             server_tags = results.scalars().all()
 
         if user_tags_allowed:
-            stmt = select(Tag).where(Tag.owner_id == interaction.user.id, Tag.is_user)
+            stmt = (
+                select(Tag)
+                .where(Tag.owner_id == interaction.user.id, Tag.is_user)
+                .order_by(Tag.amount_used.desc())
+            )
             results = await session.execute(stmt)
             user_tags = results.scalars().all()
+
+    if not current:
+        results = [
+            app_commands.Choice(
+                name="Start typing to search for a server or user tag, or select a frequently used tag below",
+                value="",
+            )
+        ]
+
+        tags: list[Tag] = []
+        tags.extend(server_tags[:3])
+        tags.extend(user_tags[:3])
+
+        for tag in tags:
+            results.append(
+                app_commands.Choice(
+                    name=f"{'User' if tag.is_user else 'Server'}: {tag.name}", value=str(tag.id)
+                )
+            )
+
+        return results
 
     if not server_tags and not user_tags:
         return []
@@ -137,6 +162,13 @@ class TagCommandsCog(commands.Cog):
             and ctx.guild.id in [role.id for role in author.roles]
         )
 
+    async def push_tag_usage(self, tag: Tag) -> None:
+        async with get_session() as session:
+            session_tag = await session.get(Tag, tag.id)
+            if not session_tag:
+                return
+            session_tag.amount_used += 1
+
     async def command_not_found_hook(
         self, ctx: commands.Context["TitaniumBot"], error: Any
     ) -> bool:
@@ -156,6 +188,7 @@ class TagCommandsCog(commands.Cog):
                 continue
 
             await ctx.reply(content=tag.content, allowed_mentions=discord.AllowedMentions.none())
+            await self.push_tag_usage(tag)
             return True
 
         return False
@@ -305,10 +338,12 @@ class TagCommandsCog(commands.Cog):
                 content=tag_data.content,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
+            await self.push_tag_usage(tag_data)
         else:
             await ctx.reply(
                 content=tag_data.content, allowed_mentions=discord.AllowedMentions.none()
             )
+            await self.push_tag_usage(tag_data)
 
     # List tags command
     @tags_group.command(
