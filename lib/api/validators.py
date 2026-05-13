@@ -59,8 +59,8 @@ class GuildSettingsModel(BaseModel):
 
 
 class GuildPermissionsModel(BaseModel):
-    dashboard_managers: list[str] = Field(default_factory=list)
-    case_managers: list[str] = Field(default_factory=list)
+    dashboard_managers: list[str] = Field(default_factory=list, max_length=100)
+    case_managers: list[str] = Field(default_factory=list, max_length=100)
 
 
 class ConfessionsConfigModel(BaseModel):
