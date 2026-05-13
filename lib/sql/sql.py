@@ -149,11 +149,14 @@ class GuildSettings(Base):
 class GuildLimits(Base):
     __tablename__ = "guild_limits"
     id: Mapped[int] = MappedColumn(BigInteger, primary_key=True)
+    enforcing: Mapped[bool] = MappedColumn(Boolean, server_default=text("true"))
     automod_rules: Mapped[int] = MappedColumn(Integer, server_default=text("50"))
-    bad_word_list_size: Mapped[int] = MappedColumn(Integer, server_default=text("1500"))
+    bad_word_list_size: Mapped[int] = MappedColumn(Integer, server_default=text("1000"))
     bouncer_rules: Mapped[int] = MappedColumn(Integer, server_default=text("10"))
     fireboards: Mapped[int] = MappedColumn(Integer, server_default=text("10"))
+    leaderboard_levels: Mapped[int] = MappedColumn(Integer, server_default=text("100"))
     server_counters: Mapped[int] = MappedColumn(Integer, server_default=text("20"))
+    tags: Mapped[int] = MappedColumn(Integer, server_default=text("250"))
 
 
 class GuildPrefixes(Base):

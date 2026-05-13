@@ -383,12 +383,14 @@ class APICog(commands.Cog):
                     for emoji in guild.emojis
                 ],
                 "limits": {
-                    "enforcing": True,
+                    "enforcing": guild_limits.enforcing,
                     "automod_rules": guild_limits.automod_rules,
                     "bad_word_list_size": guild_limits.bad_word_list_size,
                     "bouncer_rules": guild_limits.bouncer_rules,
                     "fireboards": guild_limits.fireboards,
+                    "leaderboard_levels": guild_limits.leaderboard_levels,
                     "server_counters": guild_limits.server_counters,
+                    "tags": guild_limits.tags,
                 },
             }
         )
