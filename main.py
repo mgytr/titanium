@@ -99,7 +99,6 @@ class TitaniumBot(commands.Bot):
 
     guild_configs: dict[int, GuildSettings] = {}
     guild_prefixes: dict[int, GuildPrefixes] = {}
-    guild_limits: dict[int, GuildLimits] = {}
     available_webhooks: dict[int, list[AvailableWebhook]] = {}
     automod_messages: dict[int, dict[int, list[AutomodMessage]]] = {}
     fireboard_messages: dict[int, list[FireboardMessage]] = {}
@@ -163,15 +162,6 @@ class TitaniumBot(commands.Bot):
             for config in prefix_configs:
                 self.guild_prefixes[config.guild_id] = config
 
-            # Guild limits
-            stmt = select(GuildLimits).options(selectinload("*"))
-            result = await session.execute(stmt)
-            limit_configs = result.scalars().all()
-            self.guild_limits.clear()
-
-            for config in limit_configs:
-                self.guild_limits[config.id] = config
-
             # Available webhooks
             stmt = select(AvailableWebhook).options(selectinload("*"))
             result = await session.execute(stmt)
@@ -220,14 +210,6 @@ class TitaniumBot(commands.Bot):
             if prefix_config:
                 self.guild_prefixes[prefix_config.guild_id] = prefix_config
 
-            # Guild limits
-            stmt = select(GuildLimits).where(GuildLimits.id == guild_id).options(selectinload("*"))
-            result = await session.execute(stmt)
-            limit_config = result.scalar()
-
-            if limit_config:
-                self.guild_limits[limit_config.id] = limit_config
-
             # Available webhooks
             stmt = (
                 select(AvailableWebhook)
@@ -259,7 +241,6 @@ class TitaniumBot(commands.Bot):
     def remove_cached_config(self, guild_id: int) -> None:
         self.guild_configs.pop(guild_id, None)
         self.guild_prefixes.pop(guild_id, None)
-        self.guild_limits.pop(guild_id, None)
         self.available_webhooks.pop(guild_id, None)
         self.automod_messages.pop(guild_id, None)
         self.fireboard_messages.pop(guild_id, None)
@@ -343,9 +324,6 @@ class TitaniumBot(commands.Bot):
             await session.execute(stmt)
 
             stmt = delete(GuildPrefixes).where(GuildPrefixes.guild_id == guild_id)
-            await session.execute(stmt)
-
-            stmt = delete(GuildLimits).where(GuildLimits.id == guild_id)
             await session.execute(stmt)
 
             stmt = delete(AvailableWebhook).where(AvailableWebhook.guild_id == guild_id)

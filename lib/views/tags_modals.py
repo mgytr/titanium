@@ -2,6 +2,7 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 import discord
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from lib.sql.sql import Tag, get_session
@@ -127,6 +128,21 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
             )
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
+        self.is_server_tag = self.tag_type.component.value == "server"
+
+        if self.is_server_tag and interaction.guild:
+            config = await interaction.client.fetch_guild_config(interaction.guild.id)
+            if not config:
+                raise Exception("Failed to get guild config")
+
+            if not config.moderation_enabled:
+                embed = discord.Embed(
+                    title=f"{interaction.client.error_emoji} Disabled",
+                    description="Tags have been disabled by a server admin.",
+                    colour=discord.Colour.red(),
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+
         if self.existing_tag:
             # editing tag
             async with get_session() as session:
@@ -166,9 +182,38 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
             )
         else:
             # creating tag
-            self.is_server_tag = self.tag_type.component.value == "server"
-
             async with get_session(autocommit=False) as session:
+                if self.is_server_tag and interaction.guild and config:
+                    total_result = await session.execute(
+                        select(func.count())
+                        .select_from(Tag)
+                        .where(Tag.guild_id == interaction.guild.id)
+                    )
+                    total_count = total_result.scalar() or 0
+
+                    if config.limits.enforcing and total_count >= config.limits.tags:
+                        embed = discord.Embed(
+                            title=f"{interaction.client.error_emoji} Limit Exceeded",
+                            description=f"You have exceeded the server tag limit of `{config.limits.tags}`. The tag was not created. Please delete some tags, or request an increased limit in the [support server](https://titaniumbot.me/server).",
+                            colour=discord.Colour.red(),
+                        )
+                        return await interaction.followup.send(embed=embed, ephemeral=True)
+                else:
+                    total_result = await session.execute(
+                        select(func.count())
+                        .select_from(Tag)
+                        .where(Tag.owner_id == interaction.user.id, Tag.is_user)
+                    )
+                    total_count = total_result.scalar() or 0
+
+                    if total_count >= 250:
+                        embed = discord.Embed(
+                            title=f"{interaction.client.error_emoji} Limit Exceeded",
+                            description="You cannot create more than `250` user tags.",
+                            colour=discord.Colour.red(),
+                        )
+                        return await interaction.followup.send(embed=embed, ephemeral=True)
+
                 new_tag = Tag(
                     guild_id=interaction.guild.id
                     if interaction.guild and self.tag_type.component.value == "server"

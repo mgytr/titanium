@@ -317,20 +317,13 @@ class APICog(commands.Cog):
         if user_id:
             member = await get_or_fetch_member(self.bot, guild, int(user_id))
 
-        guild_limits = self.bot.guild_limits.get(guild.id)
-        if not guild_limits:
-            await self.bot.refresh_guild_config_cache(guild.id)
-            guild_limits = self.bot.guild_limits.get(guild.id)
-
-        if not guild_limits:
-            await self.bot.init_guild(guild.id)
-            guild_limits = self.bot.guild_limits.get(guild.id)
-
-        if not guild_limits:
+        config = await self.bot.fetch_guild_config(guild.id)
+        if not config:
             return web.json_response(
                 {"error": "Failed to retrieve server limits"},
                 status=500,
             )
+        guild_limits = config.limits
 
         return web.json_response(
             {
@@ -671,6 +664,13 @@ class APICog(commands.Cog):
         if not guild:
             return web.json_response({"error": "guild not found"}, status=404)
 
+        config = await self.bot.fetch_guild_config(guild.id)
+        if not config:
+            return web.json_response({"error": "failed to get guild config"}, status=500)
+
+        if not config.moderation_enabled:
+            return web.json_response({"error": "moderation is disabled in this server"}, status=403)
+
         body: dict = await request.json()
         member = await get_or_fetch_member(bot=self.bot, guild=guild, user_id=int(body["user"]))
 
@@ -707,6 +707,13 @@ class APICog(commands.Cog):
         guild = self.bot.get_guild(int(guild_id))
         if not guild:
             return web.json_response({"error": "guild not found"}, status=404)
+
+        config = await self.bot.fetch_guild_config(guild.id)
+        if not config:
+            return web.json_response({"error": "failed to get guild config"}, status=500)
+
+        if not config.moderation_enabled:
+            return web.json_response({"error": "moderation is disabled in this server"}, status=403)
 
         async with get_session() as session:
             manager = GuildModCaseManager(self.bot, guild, session)
@@ -818,6 +825,22 @@ class APICog(commands.Cog):
         if not guild:
             return web.json_response({"error": "guild not found"}, status=404)
 
+        config = await self.bot.fetch_guild_config(guild.id)
+        if not config:
+            return web.json_response({"error": "failed to get guild config"}, status=500)
+
+        if not config.tags_enabled:
+            return web.json_response({"error": "tags are disabled in this server"}, status=403)
+
+        if config.limits.enforcing and len(config.tag_settings.tags) + 1 > config.limits.tags:
+            return web.json_response(
+                {
+                    "error": "Limit exceeded",
+                    "message": "You have gone over your limit for server tags.",
+                },
+                status=403,
+            )
+
         member = await get_or_fetch_member(self.bot, guild, int(validated_tag.user))
         if not member:
             return web.json_response({"error": "user not found"}, status=404)
@@ -863,6 +886,13 @@ class APICog(commands.Cog):
         if not guild:
             return web.json_response({"error": "guild not found"}, status=404)
 
+        config = await self.bot.fetch_guild_config(guild.id)
+        if not config:
+            return web.json_response({"error": "failed to get guild config"}, status=500)
+
+        if not config.tags_enabled:
+            return web.json_response({"error": "tags are disabled in this server"}, status=403)
+
         member = await get_or_fetch_member(self.bot, guild, int(validated_tag.user))
         if not member:
             return web.json_response({"error": "user not found"}, status=404)
@@ -903,6 +933,13 @@ class APICog(commands.Cog):
         guild = self.bot.get_guild(int(guild_id))
         if not guild:
             return web.json_response({"error": "guild not found"}, status=404)
+
+        config = await self.bot.fetch_guild_config(guild.id)
+        if not config:
+            return web.json_response({"error": "failed to get guild config"}, status=500)
+
+        if not config.tags_enabled:
+            return web.json_response({"error": "tags are disabled in this server"}, status=403)
 
         async with get_session() as session:
             to_delete = await session.get(Tag, tag_id)
@@ -1397,6 +1434,21 @@ class APICog(commands.Cog):
 
                 session.add(db_config)
         elif module_name == "automod" and isinstance(validated_config, AutomodConfigModel):
+            if (
+                len(validated_config.badword_detection)
+                + len(validated_config.spam_detection)
+                + len(validated_config.malicious_link_detection)
+                + len(validated_config.phishing_link_detection)
+                > config.limits.automod_rules
+            ):
+                return web.json_response(
+                    {
+                        "error": "Limit exceeded",
+                        "message": "You have gone over your allocated automod rules limit.",
+                    },
+                    status=403,
+                )
+
             async with get_session() as session:
                 automod_settings = await session.get(GuildAutomodSettings, int(guild_id))
 
@@ -1437,6 +1489,18 @@ class APICog(commands.Cog):
                     validated_config.phishing_link_detection,
                 ]:
                     for rule_model in detection_config:
+                        if (
+                            rule_model.words
+                            and len(rule_model.words) > config.limits.bad_word_list_size
+                        ):
+                            return web.json_response(
+                                {
+                                    "error": "Limit exceeded",
+                                    "message": "One of your automod rules has too many words.",
+                                },
+                                status=403,
+                            )
+
                         automod_rule = rule_model.to_sqlalchemy(guild_id)
                         session.add(automod_rule)
 
@@ -1449,6 +1513,15 @@ class APICog(commands.Cog):
                     status=500,
                 )
         elif module_name == "bouncer" and isinstance(validated_config, BouncerConfigModel):
+            if len(validated_config.rules) > config.limits.bouncer_rules:
+                return web.json_response(
+                    {
+                        "error": "Limit exceeded",
+                        "message": "You have gone over your allocated bouncer rules limit.",
+                    },
+                    status=403,
+                )
+
             async with get_session() as session:
                 db_config = await session.get(GuildBouncerSettings, guild.id)
                 if not db_config:
@@ -1457,6 +1530,19 @@ class APICog(commands.Cog):
                 await session.execute(delete(BouncerRule).where(BouncerRule.guild_id == guild_id))
 
                 for rule in validated_config.rules:
+                    for criterion in rule.criteria:
+                        if (
+                            criterion.words
+                            and len(criterion.words) > config.limits.bad_word_list_size
+                        ):
+                            return web.json_response(
+                                {
+                                    "error": "Limit exceeded",
+                                    "message": "One of your bouncer criterion has too many words.",
+                                },
+                                status=403,
+                            )
+
                     bouncer_rule = rule.to_sqlalchemy(guild_id)
                     session.add(bouncer_rule)
 
@@ -1475,6 +1561,15 @@ class APICog(commands.Cog):
 
                 session.add(db_config)
         elif module_name == "fireboard" and isinstance(validated_config, FireboardConfigModel):
+            if len(validated_config.boards) > config.limits.fireboards:
+                return web.json_response(
+                    {
+                        "error": "Limit exceeded",
+                        "message": "You have gone over your allocated fireboard limit.",
+                    },
+                    status=403,
+                )
+
             async with get_session() as session:
                 db_config = await session.get(GuildSettings, guild.id)
                 if not db_config:
@@ -1564,6 +1659,15 @@ class APICog(commands.Cog):
                     {
                         "error": "User missing permissions",
                         "message": "You are missing the Manage Channels permission.",
+                    },
+                    status=403,
+                )
+
+            if len(validated_config.channels) > config.limits.server_counters:
+                return web.json_response(
+                    {
+                        "error": "Limit exceeded",
+                        "message": "You have gone over your allocated server counter channel limit.",
                     },
                     status=403,
                 )
@@ -1742,6 +1846,15 @@ class APICog(commands.Cog):
 
                         await session.delete(existing_channel)
         elif module_name == "leaderboard" and isinstance(validated_config, LeaderboardConfigModel):
+            if len(validated_config.levels) > config.limits.leaderboard_levels:
+                return web.json_response(
+                    {
+                        "error": "Limit exceeded",
+                        "message": "You have gone over your allocated leaderboard level limit.",
+                    },
+                    status=403,
+                )
+
             async with get_session() as session:
                 db_config = await session.get(GuildSettings, guild.id)
                 if not db_config:

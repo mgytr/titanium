@@ -73,6 +73,13 @@ class GuildSettings(Base):
         ARRAY(BigInteger), server_default=text("ARRAY[]::bigint[]")
     )
 
+    limits: Mapped["GuildLimits"] = relationship(
+        "GuildLimits",
+        cascade="all, delete-orphan",
+        back_populates="guild_settings",
+        uselist=False,
+    )
+
     moderation_enabled: Mapped[bool] = MappedColumn(Boolean, server_default=text("true"))
     moderation_settings: Mapped["GuildModerationSettings"] = relationship(
         "GuildModerationSettings",
@@ -148,7 +155,13 @@ class GuildSettings(Base):
 
 class GuildLimits(Base):
     __tablename__ = "guild_limits"
-    id: Mapped[int] = MappedColumn(BigInteger, primary_key=True)
+    id: Mapped[int] = MappedColumn(
+        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE"), primary_key=True
+    )
+    guild_settings: Mapped["GuildSettings"] = relationship(
+        "GuildSettings", back_populates="limits", uselist=False
+    )
+
     enforcing: Mapped[bool] = MappedColumn(Boolean, server_default=text("true"))
     automod_rules: Mapped[int] = MappedColumn(Integer, server_default=text("50"))
     bad_word_list_size: Mapped[int] = MappedColumn(Integer, server_default=text("1000"))
