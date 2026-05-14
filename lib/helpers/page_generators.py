@@ -27,16 +27,15 @@ def generate_lb_embeds(
     embed.set_author(name=guild.name, icon_url=guild.icon.url if guild.icon else None)
 
     for i, user_stats in enumerate(top_users, start=1):
-        member = guild.get_member(user_stats.user_id)
         data_str = f"{getattr(user_stats, attr):,}{'XP' if show_xp_label else ''}{f', Level {user_stats.level:,}' if show_levels else ''}"
 
         if embed.description:
             embed.description += (
-                f"\n{i}. {member.mention if member else f'`{user_stats.user_id}`'} - {data_str}"
+                f"\n{i}. <@{user_stats.user_id}> - {data_str}"
             )
         else:
             embed.description = (
-                f"{i}. {member.mention if member else f'`{user_stats.user_id}`'} - {data_str}"
+                f"{i}. <@{user_stats.user_id}> - {data_str}"
             )
 
         if i % page_size == 0:

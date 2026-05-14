@@ -227,7 +227,6 @@ class FireboardCog(commands.Cog):
                     discord.abc.PrivateChannel,
                 ),
             )
-            or event.channel_id in config.fireboard_settings.global_ignored_channels
         ):
             self.logger.debug("Ignoring reaction")
             return
@@ -257,12 +256,6 @@ class FireboardCog(commands.Cog):
 
         for fireboard_message in list(self.bot.fireboard_messages.get(event.guild_id, [])):
             if fireboard_message.message_id == event.message_id:
-                if event.channel_id in fireboard_message.fireboard.ignored_channels:
-                    self.logger.debug(
-                        f"Skipping board {fireboard_message.fireboard.id}: channel {event.channel_id} in board blocklist"
-                    )
-                    continue
-
                 normalized_board_reaction = self._normalize_emoji(
                     fireboard_message.fireboard.reaction
                 )
@@ -318,34 +311,6 @@ class FireboardCog(commands.Cog):
                         self.logger.debug("Source message not found, deleting fireboard message")
                         await board_msg.delete()
 
-                        continue
-
-                    # check user roles - global blocklist
-                    if (
-                        any(
-                            role.id in config.fireboard_settings.global_ignored_roles
-                            for role in source_msg.author.roles
-                        )
-                        if isinstance(source_msg.author, discord.Member)
-                        else False
-                    ):
-                        self.logger.debug(
-                            f"User's role is on the global blocklist - user: {source_msg.author.id}"
-                        )
-                        return
-
-                    # check user roles - board blocklist
-                    if (
-                        any(
-                            role.id in fireboard_message.fireboard.ignored_roles
-                            for role in source_msg.author.roles
-                        )
-                        if isinstance(source_msg.author, discord.Member)
-                        else False
-                    ):
-                        self.logger.debug(
-                            f"User's role is on the board blocklist - user: {source_msg.author.id}"
-                        )
                         continue
 
                     count = await self._calculate_reaction_count(
@@ -419,159 +384,159 @@ class FireboardCog(commands.Cog):
             )
 
             if (
-                count >= board.threshold
-                and msg_channel.id not in board.ignored_channels
-                and (
-                    any(role.id not in board.ignored_roles for role in source_msg.author.roles)
+                count < board.threshold
+                or msg_channel.id in board.ignored_channels
+                or msg_channel.id in config.fireboard_settings.global_ignored_channels
+                or (
+                    any(role.id in board.ignored_roles for role in source_msg.author.roles)
                     if isinstance(source_msg.author, discord.Member)
-                    else True
+                    else False
                 )
-                and (
+                or (
                     any(
-                        role.id not in config.fireboard_settings.global_ignored_roles
+                        role.id in config.fireboard_settings.global_ignored_roles
                         for role in source_msg.author.roles
                     )
                     if isinstance(source_msg.author, discord.Member)
-                    else True
+                    else False
                 )
             ):
-                self.logger.debug(f"Creating new fireboard entry on board {board.id}")
-                content = f"**{count} {event.emoji}** • {source_msg.author.mention} • {msg_channel.mention}"
-                board_channel = self.bot.get_channel(board.channel_id)
-
-                if board_channel is None or isinstance(
-                    board_channel,
-                    (
-                        discord.ForumChannel,
-                        discord.CategoryChannel,
-                        discord.abc.PrivateChannel,
-                    ),
-                ):
-                    self.logger.debug(f"Board channel {board.channel_id} not found or invalid type")
-                    return
-
-                view = discord.ui.View()
-                view.add_item(
-                    discord.ui.Button(
-                        label="Jump to Message",
-                        url=source_msg.jump_url,
-                        style=discord.ButtonStyle.url,
-                    )
-                )
-
-                files = []
-                failed = False
-
-                for attempt in range(2):
-                    for attachment in source_msg.attachments:
-                        try:
-                            files.append(await attachment.to_file())
-                        except Exception as e:
-                            if not failed:
-                                failed = True
-                                break
-
-                            await log_error(
-                                bot=self.bot,
-                                module="Fireboard",
-                                guild_id=event.guild_id,
-                                error="Failed to download fireboard attachment",
-                                details=f"Attachment name: {attachment.filename}\nMessage ID: {source_msg.id}\nChannel ID: {source_msg.channel.id}",
-                                exc=e,
-                            )
-
-                    if not failed:
-                        break
-
-                    if attempt == 0:
-                        self.logger.debug(
-                            "Failed to download one or more attachments, retrying fetch of source message"
-                        )
-
-                        source_msg = await source_msg.channel.fetch_message(source_msg.id)
-                        files = []
-
-                new_message = await board_channel.send(
-                    content=content,
-                    embed=self._fireboard_embed(
-                        source_msg, len(source_msg.attachments) - len(files)
-                    ),
-                    files=files,
-                    view=view,
-                )
-                self.logger.debug(f"Created fireboard message {new_message.id}")
-
-                async with get_session() as session:
-                    fireboard_message = FireboardMessage(
-                        guild_id=event.guild_id,
-                        message_id=event.message_id,
-                        fireboard_id=board.id,
-                        fireboard_message_id=new_message.id,
-                    )
-                    session.add(fireboard_message)
-
-                    await session.commit()
-                    await session.refresh(fireboard_message, ["fireboard"])
-                    session.expunge(fireboard_message)
-
-                    self.logger.debug(
-                        f"Saved fireboard message to database with ID {fireboard_message.id}"
-                    )
-
-                    self.bot.fireboard_messages.setdefault(event.guild_id, []).append(
-                        fireboard_message
-                    )
-                    self.logger.debug("Added fireboard message to cache")
-
-                if not board.send_notifications:
-                    self.logger.debug("Board notifications disabled, skipping notification")
-                    return
-
-                notification_embed = discord.Embed(
-                    description=f"🎉 Your message was featured in {board_channel.mention}!",
-                    colour=discord.Colour.green(),
-                    timestamp=discord.utils.utcnow(),
-                )
-
-                notification_view = discord.ui.View()
-                notification_view.add_item(
-                    discord.ui.Button(
-                        label="View Board Message",
-                        url=new_message.jump_url,
-                        style=discord.ButtonStyle.url,
-                    )
-                )
-
-                try:
-                    await source_msg.reply(
-                        embed=notification_embed,
-                        view=notification_view,
-                    )
-                    self.logger.debug(f"Sent fireboard notification to user {source_msg.author.id}")
-                except discord.Forbidden as e:
-                    await log_error(
-                        bot=self.bot,
-                        module="Fireboard",
-                        guild_id=event.guild_id,
-                        error=f"Titanium was not allowed to send fireboard notification in #{source_msg.channel.name if not isinstance(source_msg.channel, (discord.PartialMessageable, discord.abc.PrivateChannel)) else 'Unknown'} ({source_msg.channel.id})",
-                        details=str(e.text),
-                        exc=e,
-                    )
-                except discord.HTTPException as e:
-                    await log_error(
-                        bot=self.bot,
-                        module="Fireboard",
-                        guild_id=event.guild_id,
-                        error=f"Unknown Discord error while sending fireboard notification in #{source_msg.channel.name if not isinstance(source_msg.channel, (discord.PartialMessageable, discord.abc.PrivateChannel)) else 'Unknown'} ({source_msg.channel.id})",
-                        details=str(e.text),
-                        exc=e,
-                    )
-
-                return
-            else:
                 self.logger.debug(
                     f"Board {board.id} criteria not met: count={count}, threshold={board.threshold}, channel_ignored={source_msg.channel.id in board.ignored_channels}"
                 )
+                continue
+
+            self.logger.debug(f"Creating new fireboard entry on board {board.id}")
+            content = (
+                f"**{count} {event.emoji}** • {source_msg.author.mention} • {msg_channel.mention}"
+            )
+            board_channel = self.bot.get_channel(board.channel_id)
+
+            if board_channel is None or isinstance(
+                board_channel,
+                (
+                    discord.ForumChannel,
+                    discord.CategoryChannel,
+                    discord.abc.PrivateChannel,
+                ),
+            ):
+                self.logger.debug(f"Board channel {board.channel_id} not found or invalid type")
+                return
+
+            view = discord.ui.View()
+            view.add_item(
+                discord.ui.Button(
+                    label="Jump to Message",
+                    url=source_msg.jump_url,
+                    style=discord.ButtonStyle.url,
+                )
+            )
+
+            files = []
+            failed = False
+
+            for attempt in range(2):
+                for attachment in source_msg.attachments:
+                    try:
+                        files.append(await attachment.to_file())
+                    except Exception as e:
+                        if not failed:
+                            failed = True
+                            break
+
+                        await log_error(
+                            bot=self.bot,
+                            module="Fireboard",
+                            guild_id=event.guild_id,
+                            error="Failed to download fireboard attachment",
+                            details=f"Attachment name: {attachment.filename}\nMessage ID: {source_msg.id}\nChannel ID: {source_msg.channel.id}",
+                            exc=e,
+                        )
+
+                if not failed:
+                    break
+
+                if attempt == 0:
+                    self.logger.debug(
+                        "Failed to download one or more attachments, retrying fetch of source message"
+                    )
+
+                    source_msg = await source_msg.channel.fetch_message(source_msg.id)
+                    files = []
+
+            new_message = await board_channel.send(
+                content=content,
+                embed=self._fireboard_embed(source_msg, len(source_msg.attachments) - len(files)),
+                files=files,
+                view=view,
+            )
+            self.logger.debug(f"Created fireboard message {new_message.id}")
+
+            async with get_session() as session:
+                fireboard_message = FireboardMessage(
+                    guild_id=event.guild_id,
+                    message_id=event.message_id,
+                    fireboard_id=board.id,
+                    fireboard_message_id=new_message.id,
+                )
+                session.add(fireboard_message)
+
+                await session.commit()
+                await session.refresh(fireboard_message, ["fireboard"])
+                session.expunge(fireboard_message)
+
+                self.logger.debug(
+                    f"Saved fireboard message to database with ID {fireboard_message.id}"
+                )
+
+                self.bot.fireboard_messages.setdefault(event.guild_id, []).append(fireboard_message)
+                self.logger.debug("Added fireboard message to cache")
+
+            if not board.send_notifications:
+                self.logger.debug("Board notifications disabled, skipping notification")
+                return
+
+            notification_embed = discord.Embed(
+                description=f"🎉 Your message was featured in {board_channel.mention}!",
+                colour=discord.Colour.green(),
+                timestamp=discord.utils.utcnow(),
+            )
+
+            notification_view = discord.ui.View()
+            notification_view.add_item(
+                discord.ui.Button(
+                    label="View Board Message",
+                    url=new_message.jump_url,
+                    style=discord.ButtonStyle.url,
+                )
+            )
+
+            try:
+                await source_msg.reply(
+                    embed=notification_embed,
+                    view=notification_view,
+                )
+                self.logger.debug(f"Sent fireboard notification to user {source_msg.author.id}")
+            except discord.Forbidden as e:
+                await log_error(
+                    bot=self.bot,
+                    module="Fireboard",
+                    guild_id=event.guild_id,
+                    error=f"Titanium was not allowed to send fireboard notification in #{source_msg.channel.name if not isinstance(source_msg.channel, (discord.PartialMessageable, discord.abc.PrivateChannel)) else 'Unknown'} ({source_msg.channel.id})",
+                    details=str(e.text),
+                    exc=e,
+                )
+            except discord.HTTPException as e:
+                await log_error(
+                    bot=self.bot,
+                    module="Fireboard",
+                    guild_id=event.guild_id,
+                    error=f"Unknown Discord error while sending fireboard notification in #{source_msg.channel.name if not isinstance(source_msg.channel, (discord.PartialMessageable, discord.abc.PrivateChannel)) else 'Unknown'} ({source_msg.channel.id})",
+                    details=str(e.text),
+                    exc=e,
+                )
+
+            return
 
     async def message_edit_handler(self, payload: discord.RawMessageUpdateEvent):
         if not payload.guild_id:

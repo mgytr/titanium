@@ -1904,6 +1904,12 @@ class APICog(commands.Cog):
                 existing_config.min_xp = validated_config.min_xp
                 existing_config.max_xp = validated_config.max_xp
                 existing_config.xp_mult = validated_config.xp_mult
+                existing_config.ignored_channels = [
+                    int(channel) for channel in validated_config.ignored_channels
+                ]
+                existing_config.ignored_roles = [
+                    int(role) for role in validated_config.ignored_roles
+                ]
                 existing_config.cooldown = validated_config.cooldown
                 existing_config.levelup_notifications = validated_config.levelup_notifications
                 existing_config.notification_ping = validated_config.notification_ping
