@@ -12,6 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from lib.enums.leaderboard import LeaderboardCalcType
+from lib.helpers.global_alias import add_global_aliases, global_alias, remove_global_aliases
+from lib.helpers.hybrid_adapters import handle_group_command_not_found
 from lib.helpers.log_error import log_error
 from lib.helpers.page_generators import generate_lb_embeds
 from lib.sql.sql import LeaderboardUserStats, get_session
@@ -32,10 +34,11 @@ class LeaderboardCog(commands.Cog):
         self.member_last_trigger: dict[int, dict[int, datetime]] = {}
 
         self.take_daily_snapshots.start()
+        add_global_aliases(self, bot)
 
     async def cog_unload(self) -> None:
-        # Stop tasks on unload
         self.take_daily_snapshots.cancel()
+        remove_global_aliases(self, self.bot)
 
     # Snapshot task
     @tasks.loop(hours=24)
@@ -109,7 +112,6 @@ class LeaderboardCog(commands.Cog):
                 word_count=word_count,
                 attachment_count=attachment_count,
                 explicit_count=explicit_count,
-                level=0,
             )
             stmt = stmt.on_conflict_do_update(
                 index_elements=["guild_id", "user_id"],
@@ -259,7 +261,7 @@ class LeaderboardCog(commands.Cog):
                 description="You have opted out of data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
@@ -273,7 +275,7 @@ class LeaderboardCog(commands.Cog):
                 description="The leaderboard system is not enabled in this server.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         async with get_session() as session:
@@ -292,7 +294,7 @@ class LeaderboardCog(commands.Cog):
                     description="No users have recorded XP or levels yet.",
                     colour=discord.Colour.red(),
                 )
-                await ctx.send(embed=embed)
+                await ctx.reply(embed=embed)
                 return
 
             pages = generate_lb_embeds(
@@ -320,9 +322,9 @@ class LeaderboardCog(commands.Cog):
             )
 
             if len(pages) > 1:
-                await ctx.send(embed=pages[0], view=view)
+                await ctx.reply(embed=pages[0], view=view)
             else:
-                await ctx.send(embed=pages[0])
+                await ctx.reply(embed=pages[0])
 
     # Level command
     @commands.hybrid_command(name="level", aliases=["lvl"])
@@ -345,7 +347,7 @@ class LeaderboardCog(commands.Cog):
                 description="This user has opted out of data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
@@ -359,7 +361,7 @@ class LeaderboardCog(commands.Cog):
                 description="The leaderboard system is not enabled in this server.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         async with get_session() as session:
@@ -380,7 +382,7 @@ class LeaderboardCog(commands.Cog):
                     description=f"**{user.display_name}** has no recorded XP or level.",
                     colour=discord.Colour.red(),
                 )
-                await ctx.send(embed=embed)
+                await ctx.reply(embed=embed)
                 return
 
             blocked_roles: list[str] = []
@@ -400,9 +402,9 @@ class LeaderboardCog(commands.Cog):
             )
 
             if guild_settings.leaderboard_settings.levels:
-                embed.add_field(name="Level", value=str(user_stats.level), inline=True)
+                embed.add_field(name="Level", value=f"{user_stats.level:,}", inline=True)
 
-            embed.add_field(name="XP", value=str(user_stats.xp), inline=True)
+            embed.add_field(name="XP", value=f"{user_stats.xp:,}", inline=True)
 
             embed.set_author(
                 name=f"@{user.name}",
@@ -416,7 +418,161 @@ class LeaderboardCog(commands.Cog):
                 url=user.display_avatar.url,
             )
 
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
+
+    @commands.hybrid_group(name="xp", description="Set, add and remove XP from users.")
+    @commands.guild_only()
+    @app_commands.allowed_installs(guilds=True, users=False)
+    async def xp_group(self, ctx: commands.Context["TitaniumBot"]) -> None:
+        handle_group_command_not_found(ctx)
+
+    @xp_group.command(name="set", description="Set the XP of a user.")
+    @global_alias("setxp")
+    async def set_xp(
+        self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
+    ) -> None:
+        if not ctx.guild:
+            return
+
+        await ctx.defer()
+
+        guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
+        if (
+            not guild_settings
+            or not guild_settings.leaderboard_settings
+            or not guild_settings.leaderboard_enabled
+        ):
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Leaderboard Disabled",
+                description="The leaderboard system is not enabled in this server.",
+                colour=discord.Colour.red(),
+            )
+            await ctx.reply(embed=embed)
+            return
+
+        async with get_session() as session:
+            stmt = select(LeaderboardUserStats).where(
+                LeaderboardUserStats.guild_id == ctx.guild.id,
+                LeaderboardUserStats.user_id == ctx.author.id,
+            )
+            user_stats = (await session.execute(stmt)).scalar_one_or_none()
+
+            if not user_stats:
+                session.add(
+                    LeaderboardUserStats(guild_id=ctx.guild.id, user_id=ctx.author.id, xp=xp)
+                )
+            else:
+                user_stats.xp = xp
+
+        embed = discord.Embed(
+            title=f"{self.bot.success_emoji} Done",
+            description=f"Set {user.mention}'s XP to `{xp:,}`.",
+            colour=discord.Colour.green(),
+        )
+        await ctx.reply(embed=embed)
+
+    @xp_group.command(name="add", description="Add XP to a user.")
+    @global_alias("addxp")
+    async def add_xp(
+        self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
+    ) -> None:
+        if not ctx.guild:
+            return
+
+        await ctx.defer()
+
+        guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
+        if (
+            not guild_settings
+            or not guild_settings.leaderboard_settings
+            or not guild_settings.leaderboard_enabled
+        ):
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Leaderboard Disabled",
+                description="The leaderboard system is not enabled in this server.",
+                colour=discord.Colour.red(),
+            )
+
+            await ctx.reply(embed=embed)
+            return
+
+        async with get_session() as session:
+            stmt = select(LeaderboardUserStats).where(
+                LeaderboardUserStats.guild_id == ctx.guild.id,
+                LeaderboardUserStats.user_id == ctx.author.id,
+            )
+            user_stats = (await session.execute(stmt)).scalar_one_or_none()
+
+            if not user_stats:
+                embed = discord.Embed(
+                    title=f"{self.bot.error_emoji} No Data",
+                    description=f"**{user.display_name}** has no recorded XP or level.",
+                    colour=discord.Colour.red(),
+                )
+
+                await ctx.reply(embed=embed)
+                return
+
+            user_stats.xp = min(user_stats.xp + xp, POSTGRES_MAX_INT)
+
+        embed = discord.Embed(
+            title=f"{self.bot.success_emoji} Done",
+            description=f"Added `{xp:,}` XP to {user.mention}.",
+            colour=discord.Colour.green(),
+        )
+        await ctx.reply(embed=embed)
+
+    @xp_group.command(name="remove", aliases=["deduct"], description="Remove XP from a user.")
+    @global_alias("removexp")
+    @global_alias("deductxp")
+    async def remove_xp(
+        self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
+    ) -> None:
+        if not ctx.guild:
+            return
+
+        await ctx.defer()
+
+        guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
+        if (
+            not guild_settings
+            or not guild_settings.leaderboard_settings
+            or not guild_settings.leaderboard_enabled
+        ):
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Leaderboard Disabled",
+                description="The leaderboard system is not enabled in this server.",
+                colour=discord.Colour.red(),
+            )
+
+            await ctx.reply(embed=embed)
+            return
+
+        async with get_session() as session:
+            stmt = select(LeaderboardUserStats).where(
+                LeaderboardUserStats.guild_id == ctx.guild.id,
+                LeaderboardUserStats.user_id == ctx.author.id,
+            )
+            user_stats = (await session.execute(stmt)).scalar_one_or_none()
+
+            if not user_stats:
+                embed = discord.Embed(
+                    title=f"{self.bot.error_emoji} No Data",
+                    description=f"**{user.display_name}** has no recorded XP or level.",
+                    colour=discord.Colour.red(),
+                )
+
+                await ctx.reply(embed=embed)
+                return
+
+            user_stats.xp = max(user_stats.xp - xp, -POSTGRES_MAX_INT)
+
+        embed = discord.Embed(
+            title=f"{self.bot.success_emoji} Done",
+            description=f"Removed `{xp:,}` XP from {user.mention}.",
+            colour=discord.Colour.green(),
+        )
+        await ctx.reply(embed=embed)
 
 
 async def setup(bot: TitaniumBot) -> None:

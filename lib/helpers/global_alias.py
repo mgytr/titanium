@@ -29,15 +29,13 @@ def add_global_aliases(cog: commands.Cog, bot: TitaniumBot):
 
             # copy command with alias as name
             for alias in aliases:
-                for existing_cmd in bot.commands:
-                    if existing_cmd.name == alias:
-                        bot.remove_command(alias)
+                bot.remove_command(alias)
 
                 # ignore current name / parent
                 kwargs = {
                     k: v
                     for k, v in command.__original_kwargs__.items()
-                    if k not in ("name", "parent")
+                    if k not in ("name", "parent", "aliases")
                 }
 
                 cmd_copy = commands.Command(callback, name=alias, **kwargs)
@@ -58,8 +56,4 @@ def remove_global_aliases(cog: commands.Cog, bot: TitaniumBot):
 
             # remove commands
             for alias in aliases:
-                for existing_cmd in bot.commands:
-                    if existing_cmd.name != alias:
-                        continue
-
-                    bot.remove_command(alias)
+                bot.remove_command(alias)

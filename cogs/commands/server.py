@@ -192,7 +192,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="You have opted out of data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
@@ -206,7 +206,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="The leaderboard system is not enabled in this server.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         async with get_session() as session:
@@ -225,7 +225,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                     description="No users have any recorded messages yet.",
                     colour=discord.Colour.red(),
                 )
-                await ctx.send(embed=embed)
+                await ctx.reply(embed=embed)
                 return
 
             pages = generate_lb_embeds(
@@ -247,9 +247,9 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
             )
 
             if len(pages) > 1:
-                await ctx.send(embed=pages[0], view=view)
+                await ctx.reply(embed=pages[0], view=view)
             else:
-                await ctx.send(embed=pages[0])
+                await ctx.reply(embed=pages[0])
 
     # Word leaderboard command
     @server_group.command(
@@ -268,7 +268,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="You have opted out of data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
@@ -282,7 +282,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="The leaderboard system is not enabled in this server.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         async with get_session() as session:
@@ -301,7 +301,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                     description="No users have any recorded words yet.",
                     colour=discord.Colour.red(),
                 )
-                await ctx.send(embed=embed)
+                await ctx.reply(embed=embed)
                 return
 
             pages = generate_lb_embeds(
@@ -323,9 +323,9 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
             )
 
             if len(pages) > 1:
-                await ctx.send(embed=pages[0], view=view)
+                await ctx.reply(embed=pages[0], view=view)
             else:
-                await ctx.send(embed=pages[0])
+                await ctx.reply(embed=pages[0])
 
     # Attachment leaderboard command
     @server_group.command(
@@ -345,7 +345,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="You have opted out of data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
@@ -359,7 +359,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="The leaderboard system is not enabled in this server.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         async with get_session() as session:
@@ -378,7 +378,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                     description="No users have any recorded attachments yet.",
                     colour=discord.Colour.red(),
                 )
-                await ctx.send(embed=embed)
+                await ctx.reply(embed=embed)
                 return
 
             pages = generate_lb_embeds(
@@ -400,9 +400,9 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
             )
 
             if len(pages) > 1:
-                await ctx.send(embed=pages[0], view=view)
+                await ctx.reply(embed=pages[0], view=view)
             else:
-                await ctx.send(embed=pages[0])
+                await ctx.reply(embed=pages[0])
 
     # Attachment leaderboard command
     @server_group.command(
@@ -422,7 +422,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="You have opted out of data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
@@ -436,7 +436,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                 description="The leaderboard system is not enabled in this server.",
                 colour=discord.Colour.red(),
             )
-            await ctx.send(embed=embed)
+            await ctx.reply(embed=embed)
             return
 
         async with get_session() as session:
@@ -455,7 +455,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
                     description="No users have said any explicit terms yet.",
                     colour=discord.Colour.red(),
                 )
-                await ctx.send(embed=embed)
+                await ctx.reply(embed=embed)
                 return
 
             pages = generate_lb_embeds(
@@ -477,9 +477,9 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
             )
 
             if len(pages) > 1:
-                await ctx.send(embed=pages[0], view=view)
+                await ctx.reply(embed=pages[0], view=view)
             else:
-                await ctx.send(embed=pages[0])
+                await ctx.reply(embed=pages[0])
 
     # First Message command
     @server_group.command(
