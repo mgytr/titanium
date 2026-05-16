@@ -76,6 +76,14 @@ class GuildSettings(Base):
     limits: Mapped["GuildLimits"] = relationship(
         "GuildLimits",
         cascade="all, delete-orphan",
+        passive_deletes=True,
+        back_populates="guild_settings",
+        uselist=False,
+    )
+    prefixes: Mapped["GuildPrefixes"] = relationship(
+        "GuildPrefixes",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -84,6 +92,7 @@ class GuildSettings(Base):
     moderation_settings: Mapped["GuildModerationSettings"] = relationship(
         "GuildModerationSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -92,6 +101,7 @@ class GuildSettings(Base):
     automod_settings: Mapped["GuildAutomodSettings"] = relationship(
         "GuildAutomodSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -100,6 +110,7 @@ class GuildSettings(Base):
     bouncer_settings: Mapped["GuildBouncerSettings"] = relationship(
         "GuildBouncerSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -108,6 +119,7 @@ class GuildSettings(Base):
     logging_settings: Mapped["GuildLoggingSettings"] = relationship(
         "GuildLoggingSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -116,6 +128,7 @@ class GuildSettings(Base):
     fireboard_settings: Mapped["GuildFireboardSettings"] = relationship(
         "GuildFireboardSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -125,6 +138,7 @@ class GuildSettings(Base):
         "GuildServerCounterSettings",
         back_populates="guild",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         uselist=False,
     )
 
@@ -132,6 +146,7 @@ class GuildSettings(Base):
     leaderboard_settings: Mapped["GuildLeaderboardSettings"] = relationship(
         "GuildLeaderboardSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -140,6 +155,7 @@ class GuildSettings(Base):
     confessions_settings: Mapped["GuildConfessionsSettings"] = relationship(
         "GuildConfessionsSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -148,6 +164,7 @@ class GuildSettings(Base):
     tag_settings: Mapped["GuildTagSettings"] = relationship(
         "GuildTagSettings",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         back_populates="guild_settings",
         uselist=False,
     )
@@ -174,7 +191,13 @@ class GuildLimits(Base):
 
 class GuildPrefixes(Base):
     __tablename__ = "guild_prefixes"
-    guild_id: Mapped[int] = MappedColumn(BigInteger, primary_key=True)
+    guild_id: Mapped[int] = MappedColumn(
+        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE"), primary_key=True
+    )
+    guild_settings: Mapped["GuildSettings"] = relationship(
+        "GuildSettings", back_populates="prefixes", uselist=False
+    )
+
     prefixes: Mapped[list[str]] = MappedColumn(
         ARRAY(String(length=5)),
         default=["t!"],
@@ -201,7 +224,9 @@ class ModCase(Base):
     __tablename__ = "mod_cases"
     id: Mapped[str] = MappedColumn(String(length=8), primary_key=True, default=generate_short_uuid)
     type: Mapped[CaseType] = MappedColumn(Enum(CaseType), nullable=False)
-    guild_id: Mapped[int] = MappedColumn(BigInteger)
+    guild_id: Mapped[int] = MappedColumn(
+        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE")
+    )
     user_id: Mapped[int] = MappedColumn(BigInteger)
     creator_user_id: Mapped[int] = MappedColumn(BigInteger)
     time_created: Mapped[datetime] = MappedColumn(
@@ -262,7 +287,9 @@ class ModCase(Base):
 class ModCaseComment(Base):
     __tablename__ = "mod_case_comments"
     id: Mapped[uuid.UUID] = MappedColumn(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    guild_id: Mapped[int] = MappedColumn(BigInteger)
+    guild_id: Mapped[int] = MappedColumn(
+        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE")
+    )
     case_id: Mapped[str] = MappedColumn(
         String(length=8), ForeignKey("mod_cases.id", ondelete="CASCADE")
     )
@@ -298,12 +325,14 @@ class GuildAutomodSettings(Base):
         primaryjoin="and_(GuildAutomodSettings.guild_id==foreign(AutomodRule.guild_id), AutomodRule.rule_type=='BADWORD_DETECTION')",
         back_populates="guild",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     spam_detection_rules: Mapped[list["AutomodRule"]] = relationship(
         "AutomodRule",
         primaryjoin="and_(GuildAutomodSettings.guild_id==foreign(AutomodRule.guild_id), AutomodRule.rule_type=='SPAM_DETECTION')",
         back_populates="guild",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         overlaps="badword_detection_rules",
     )
     malicious_link_rules: Mapped[list["AutomodRule"]] = relationship(
@@ -311,6 +340,7 @@ class GuildAutomodSettings(Base):
         primaryjoin="and_(GuildAutomodSettings.guild_id==foreign(AutomodRule.guild_id), AutomodRule.rule_type=='MALICIOUS_LINK')",
         back_populates="guild",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         overlaps="badword_detection_rules,spam_detection_rules",
     )
     phishing_link_rules: Mapped[list["AutomodRule"]] = relationship(
@@ -318,6 +348,7 @@ class GuildAutomodSettings(Base):
         primaryjoin="and_(GuildAutomodSettings.guild_id==foreign(AutomodRule.guild_id), AutomodRule.rule_type=='PHISHING_LINK')",
         back_populates="guild",
         cascade="all, delete-orphan",
+        passive_deletes=True,
         overlaps="badword_detection_rules,malicious_link_rules,spam_detection_rules",
     )
 
@@ -344,6 +375,7 @@ class AutomodRule(Base):
         "AutomodAction",
         back_populates="rule",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
     guild: Mapped["GuildAutomodSettings"] = relationship(
         "GuildAutomodSettings",
@@ -356,8 +388,7 @@ class AutomodAction(Base):
     __tablename__ = "automod_actions"
     id: Mapped[int] = MappedColumn(BigInteger, primary_key=True)
     guild_id: Mapped[int] = MappedColumn(
-        BigInteger,
-        ForeignKey("guild_automod_settings.guild_id", ondelete="CASCADE"),
+        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE")
     )
     rule_id: Mapped[uuid.UUID] = MappedColumn(
         UUID(as_uuid=True), ForeignKey("automod_rules.id", ondelete="CASCADE")
@@ -393,6 +424,7 @@ class GuildBouncerSettings(Base):
         "BouncerRule",
         back_populates="guild",
         cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -530,7 +562,11 @@ class FireboardBoard(Base):
 class FireboardMessage(Base):
     __tablename__ = "fireboard_messages"
     id: Mapped[int] = MappedColumn(BigInteger, primary_key=True)
-    guild_id: Mapped[int] = MappedColumn(BigInteger, nullable=False)
+    guild_id: Mapped[int] = MappedColumn(
+        BigInteger,
+        ForeignKey("guild_fireboard_settings.guild_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     message_id: Mapped[int] = MappedColumn(BigInteger, nullable=False)
     fireboard_message_id: Mapped[int] = MappedColumn(BigInteger, nullable=False)
     fireboard_id: Mapped[uuid.UUID] = MappedColumn(
@@ -600,7 +636,12 @@ class LeaderboardUserStats(Base):
     __table_args__ = (UniqueConstraint("guild_id", "user_id", name="uq_leaderboard_guild_user"),)
 
     id: Mapped[uuid.UUID] = MappedColumn(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    guild_id: Mapped[int] = MappedColumn(BigInteger, nullable=False, index=True)
+    guild_id: Mapped[int] = MappedColumn(
+        BigInteger,
+        ForeignKey("guild_leaderboard_settings.guild_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     user_id: Mapped[int] = MappedColumn(BigInteger, nullable=False, index=True)
 
     xp: Mapped[int] = MappedColumn(Integer, server_default=text("0"))
@@ -730,7 +771,9 @@ class ScheduledTask(Base):
 class AvailableWebhook(Base):
     __tablename__ = "available_webhooks"
     id: Mapped[int] = MappedColumn(BigInteger, primary_key=True)
-    guild_id: Mapped[int] = MappedColumn(BigInteger, nullable=False)
+    guild_id: Mapped[int] = MappedColumn(
+        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE"), nullable=False
+    )
     channel_id: Mapped[int] = MappedColumn(BigInteger, nullable=False)
     webhook_url: Mapped[str] = MappedColumn(String, nullable=False)
 
@@ -738,7 +781,9 @@ class AvailableWebhook(Base):
 class ErrorLog(Base):
     __tablename__ = "error_logs"
     id: Mapped[uuid.UUID] = MappedColumn(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    guild_id: Mapped[int] = MappedColumn(BigInteger)
+    guild_id: Mapped[int] = MappedColumn(
+        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE")
+    )
     module: Mapped[str] = MappedColumn(String(length=100))
     error: Mapped[str] = MappedColumn(String(length=512))
     details: Mapped[str] = MappedColumn(String(length=1024), nullable=True)
