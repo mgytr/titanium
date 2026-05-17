@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from main import TitaniumBot
 
 POSTGRES_MAX_INT = 9223372036854775807
+POSTGRES_MIN_INT = -9223372036854775808
 
 
 class LeaderboardCog(commands.Cog):
@@ -458,15 +459,18 @@ class LeaderboardCog(commands.Cog):
             user_stats = (await session.execute(stmt)).scalar_one_or_none()
 
             if not user_stats:
-                session.add(
-                    LeaderboardUserStats(guild_id=ctx.guild.id, user_id=ctx.author.id, xp=xp)
+                user_stats = LeaderboardUserStats(
+                    guild_id=ctx.guild.id,
+                    user_id=ctx.author.id,
+                    xp=max(min(xp, POSTGRES_MAX_INT), POSTGRES_MIN_INT),
                 )
+                session.add(user_stats)
             else:
-                user_stats.xp = xp
+                user_stats.xp = max(min(xp, POSTGRES_MAX_INT), POSTGRES_MIN_INT)
 
         embed = discord.Embed(
             title=f"{self.bot.success_emoji} Done",
-            description=f"Set {user.mention}'s XP to `{xp:,}`.",
+            description=f"Set {user.mention}'s XP to `{user_stats.xp:,}`.",
             colour=discord.Colour.green(),
         )
         await ctx.reply(embed=embed)
@@ -513,11 +517,12 @@ class LeaderboardCog(commands.Cog):
                 await ctx.reply(embed=embed)
                 return
 
+            old_xp = user_stats.xp
             user_stats.xp = min(user_stats.xp + xp, POSTGRES_MAX_INT)
 
         embed = discord.Embed(
             title=f"{self.bot.success_emoji} Done",
-            description=f"Added `{xp:,}` XP to {user.mention}.",
+            description=f"Added `{(user_stats.xp - old_xp):,}` XP to {user.mention}.",
             colour=discord.Colour.green(),
         )
         await ctx.reply(embed=embed)
@@ -565,11 +570,12 @@ class LeaderboardCog(commands.Cog):
                 await ctx.reply(embed=embed)
                 return
 
-            user_stats.xp = max(user_stats.xp - xp, -POSTGRES_MAX_INT)
+            old_xp = user_stats.xp
+            user_stats.xp = max(user_stats.xp - xp, POSTGRES_MIN_INT)
 
         embed = discord.Embed(
             title=f"{self.bot.success_emoji} Done",
-            description=f"Removed `{xp:,}` XP from {user.mention}.",
+            description=f"Removed `{(old_xp - user_stats.xp):,}` XP from {user.mention}.",
             colour=discord.Colour.green(),
         )
         await ctx.reply(embed=embed)

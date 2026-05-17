@@ -644,16 +644,16 @@ class LeaderboardUserStats(Base):
     )
     user_id: Mapped[int] = MappedColumn(BigInteger, nullable=False, index=True)
 
-    xp: Mapped[int] = MappedColumn(Integer, server_default=text("0"))
-    level: Mapped[int] = MappedColumn(Integer, server_default=text("0"))
+    xp: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
+    level: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
     daily_snapshots: Mapped[list[int]] = MappedColumn(
-        ARRAY(Integer), server_default=text("ARRAY[]::integer[]")
+        ARRAY(BigInteger), server_default=text("ARRAY[]::bigint[]")
     )
 
-    message_count: Mapped[int] = MappedColumn(Integer, server_default=text("0"))
-    word_count: Mapped[int] = MappedColumn(Integer, server_default=text("0"))
-    attachment_count: Mapped[int] = MappedColumn(Integer, server_default=text("0"))
-    explicit_count: Mapped[int] = MappedColumn(Integer, server_default=text("0"))
+    message_count: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
+    word_count: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
+    attachment_count: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
+    explicit_count: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
 
 
 class GuildServerCounterSettings(Base):
