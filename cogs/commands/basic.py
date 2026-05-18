@@ -34,6 +34,9 @@ class BasicCommandsCog(
             return self.bot.error_emoji
 
     def api_emoji_select(self, latency: float) -> Emoji | str:
+        if latency == 0:
+            return self.bot.error_emoji
+
         if latency < 0.5:
             return self.bot.success_emoji
         elif 0.5 <= latency < 1:
@@ -49,7 +52,7 @@ class BasicCommandsCog(
             title="🏓 Pong!",
             description=(
                 f"{self.websocket_emoji_select(self.bot.latency)} **Websocket latency:** `{self.bot.latency * 1000:.2f}ms`\n"
-                f"{self.api_emoji_select(self.bot.api_latency)} **API latency:** `{self.bot.api_latency * 1000:.2f}ms`"
+                f"{self.api_emoji_select(self.bot.api_latency)} **Discord API latency:** `{f'{self.bot.api_latency * 1000:.2f}ms' if self.bot.api_latency > 0 else 'Unavailable'}`"
                 "\n\nIs ping high or is the bot running slow? Check the [status page](https://titaniumbot.me/status) or join the [support server](https://titaniumbot.me/server) for help!"
             ),
             colour=Colour.green(),

@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import TYPE_CHECKING
 
@@ -97,12 +98,16 @@ class StatsUpdateCog(commands.Cog):
                 }
             )
 
-            start = time.perf_counter()
-            async with session.get("https://discord.com/api/v10/users/@me") as request:
-                request.raise_for_status()
+            try:
+                start = time.perf_counter()
+                async with session.get("https://discord.com/api/v10/users/@me") as request:
+                    request.raise_for_status()
 
-                delta = time.perf_counter() - start
-                self.bot.api_latency = delta
+                    delta = time.perf_counter() - start
+                    self.bot.api_latency = delta
+            except Exception as e:
+                self.bot.api_latency = 0
+                logging.exception(e)
 
 
 async def setup(bot: TitaniumBot):
