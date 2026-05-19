@@ -14,7 +14,7 @@ from PIL import Image
 from playwright.async_api import async_playwright
 from wand.image import Image as WandImage
 
-from lib.helpers.hybrid_adapters import defer
+from lib.helpers.hybrid import defer
 
 if TYPE_CHECKING:
     from main import TitaniumBot

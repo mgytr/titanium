@@ -8,7 +8,7 @@ import lib.embeds.cases as case_embeds
 from lib.classes.case_manager import CaseNotFoundException, GuildModCaseManager
 from lib.embeds.general import cancelled, guild_only, please_wait
 from lib.helpers.global_alias import add_global_aliases, global_alias, remove_global_aliases
-from lib.helpers.hybrid_adapters import _defer, _stop_loading, defer
+from lib.helpers.hybrid import _defer, _stop_loading, defer
 from lib.sql.sql import ModCase, get_session
 from lib.views.cases import CommentPageContainer, ViewCommentsButton
 from lib.views.confirm import ConfirmView

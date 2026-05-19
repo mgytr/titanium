@@ -10,7 +10,7 @@ from discord.ext import commands
 
 from lib.classes import img_tools
 from lib.enums.images import ImageFormats
-from lib.helpers.hybrid_adapters import defer, handle_group_command_not_found
+from lib.helpers.hybrid import defer, handle_group_command_not_found
 
 if TYPE_CHECKING:
     from main import TitaniumBot

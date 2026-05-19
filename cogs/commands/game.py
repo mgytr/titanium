@@ -7,7 +7,7 @@ from discord.ext import commands
 from sqlalchemy import select
 
 from lib.enums.games import GameTypes
-from lib.helpers.hybrid_adapters import handle_group_command_not_found
+from lib.helpers.hybrid import handle_group_command_not_found
 from lib.sql.sql import GameStat, get_session
 
 if TYPE_CHECKING:

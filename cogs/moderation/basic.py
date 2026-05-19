@@ -11,9 +11,9 @@ from lib.duration import DurationConverter
 from lib.embeds.dm_notifs import unbanned_dm, unmuted_dm
 from lib.embeds.general import not_in_guild
 from lib.enums.moderation import CaseType
-from lib.helpers.hybrid_adapters import _defer, _stop_loading, defer
+from lib.helpers.dm import send_dm
+from lib.helpers.hybrid import _defer, _stop_loading, defer
 from lib.helpers.log_error import log_error
-from lib.helpers.send_dm import send_dm
 from lib.sql.sql import get_session
 
 if TYPE_CHECKING:

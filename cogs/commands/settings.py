@@ -21,7 +21,7 @@ from discord.ui import (
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
-from lib.helpers.hybrid_adapters import SlashCommandOnly
+from lib.helpers.hybrid import SlashCommandOnly
 from lib.sql.sql import (
     GuildPrefixes,
     GuildSettings,

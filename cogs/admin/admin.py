@@ -9,7 +9,7 @@ import discord
 from discord.ext import commands
 
 from lib.helpers.cache import get_or_fetch_member, get_or_fetch_message
-from lib.helpers.hybrid_adapters import defer, handle_group_command_not_found
+from lib.helpers.hybrid import defer, handle_group_command_not_found
 
 if TYPE_CHECKING:
     from main import TitaniumBot

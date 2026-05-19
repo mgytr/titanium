@@ -11,11 +11,11 @@ from discord.ext import commands, tasks
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
+from lib.embeds.leaderboard import generate_lb_embeds
 from lib.enums.leaderboard import LeaderboardCalcType
 from lib.helpers.global_alias import add_global_aliases, global_alias, remove_global_aliases
-from lib.helpers.hybrid_adapters import handle_group_command_not_found
+from lib.helpers.hybrid import handle_group_command_not_found
 from lib.helpers.log_error import log_error
-from lib.helpers.page_generators import generate_lb_embeds
 from lib.sql.sql import LeaderboardUserStats, get_session
 from lib.views.pagination import LeaderboardReloadPageView
 

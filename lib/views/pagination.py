@@ -5,7 +5,7 @@ from discord.ui import ActionRow, Button, Container, LayoutView, View, button
 from sqlalchemy import select
 from sqlalchemy.orm import InstrumentedAttribute
 
-from lib.helpers.page_generators import generate_lb_embeds
+from lib.embeds.leaderboard import generate_lb_embeds
 from lib.sql.sql import LeaderboardUserStats, get_session
 
 

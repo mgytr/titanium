@@ -15,7 +15,7 @@ from discord.utils import escape_markdown
 
 import lib.embeds.spotify as elements
 from lib.classes.spotify import TitaniumSpotifyClient
-from lib.helpers.hybrid_adapters import defer, handle_group_command_not_found
+from lib.helpers.hybrid import defer, handle_group_command_not_found
 from lib.helpers.log_error import log_error
 
 if TYPE_CHECKING:

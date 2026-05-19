@@ -15,8 +15,8 @@ from lib.embeds.dm_notifs import banned_dm, kicked_dm, muted_dm, unbanned_dm, un
 from lib.enums.moderation import CaseSource, CaseType
 from lib.enums.scheduled_events import EventType
 from lib.helpers.cache import get_or_fetch_member
+from lib.helpers.dm import send_dm
 from lib.helpers.log_error import log_error
-from lib.helpers.send_dm import send_dm
 from lib.sql.sql import ModCase, ScheduledTask
 
 if TYPE_CHECKING:

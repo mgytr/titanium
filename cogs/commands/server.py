@@ -10,7 +10,7 @@ from discord.ext import commands
 from discord.ui import Button, View
 from sqlalchemy import select
 
-from lib.helpers.page_generators import generate_lb_embeds
+from lib.embeds.leaderboard import generate_lb_embeds
 from lib.sql.sql import LeaderboardUserStats, get_session
 from lib.views.pagination import LeaderboardReloadPageView
 

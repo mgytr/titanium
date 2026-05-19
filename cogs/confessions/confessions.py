@@ -6,7 +6,7 @@ from discord.ext import commands
 from discord.ui import Button, View
 
 from lib.classes.guild_logger import GuildLogger
-from lib.helpers.hybrid_adapters import SlashCommandOnly
+from lib.helpers.hybrid import SlashCommandOnly
 
 if TYPE_CHECKING:
     from main import TitaniumBot

@@ -31,7 +31,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
 
-import lib.helpers.hybrid_adapters as adapters
+import lib.helpers.hybrid as adapters
 from lib.classes.automod_message import AutomodMessage
 from lib.embeds.general import guild_only
 from lib.helpers.log_error import log_error
