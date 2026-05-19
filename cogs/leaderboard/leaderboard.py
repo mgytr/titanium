@@ -331,6 +331,9 @@ class LeaderboardCog(commands.Cog):
     @commands.hybrid_command(name="level", aliases=["lvl"])
     @commands.guild_only()
     @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.describe(
+        member="Optional: the user to get the XP info from. Defaults to yourself."
+    )
     async def level_command(
         self, ctx: commands.Context["TitaniumBot"], member: discord.Member | None = None
     ):
@@ -421,9 +424,11 @@ class LeaderboardCog(commands.Cog):
 
             await ctx.reply(embed=embed)
 
+    # TODO: test permissions
     @commands.hybrid_group(name="xp", description="Set, add and remove XP from users.")
-    @commands.guild_only()
     @app_commands.allowed_installs(guilds=True, users=False)
+    @commands.guild_only()
+    @commands.has_permissions(manage_guild=True)
     async def xp_group(self, ctx: commands.Context["TitaniumBot"]) -> None:
         handle_group_command_not_found(ctx)
 

@@ -49,11 +49,12 @@ class WebSearchCommandsCog(
         description="Search Urban Dictionary. Warning: content is mostly unmoderated and may be inappropriate!",
         aliases=["ud", "urbandictionary"],
     )
-    @app_commands.describe(page="Optional: page to jump to. Defaults to first page.")
     @app_commands.describe(
-        ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false."
+        query="The term to search for.",
+        page="Optional: page to jump to. Defaults to first page.",
+        ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
-    @commands.cooldown(1, 10)
+    @commands.cooldown(1, 5)
     async def urban_dict(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -127,7 +128,8 @@ class WebSearchCommandsCog(
         name="wikipedia", description="Search Wikipedia for information.", aliases=["wiki"]
     )
     @app_commands.describe(
-        ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false."
+        search="The term to search for.",
+        ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
     @commands.cooldown(1, 5)
     async def wiki(

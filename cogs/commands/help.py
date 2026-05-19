@@ -23,12 +23,15 @@ class HelpCommandCog(commands.Cog):
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.describe(
+        command_or_group="Optional: the command or command group to get information about."
+    )
     async def help_group(
-        self, ctx: commands.Context["TitaniumBot"], *, command_or_category: str = ""
+        self, ctx: commands.Context["TitaniumBot"], *, command_or_group: str = ""
     ) -> None:
         await ctx.defer()
 
-        if not command_or_category:
+        if not command_or_group:
             embed = discord.Embed(
                 title=f"{self.bot.info_emoji} Help",
                 description=f"`{ctx.clean_prefix}help commands` - get a list of all commands\n"
@@ -46,11 +49,11 @@ class HelpCommandCog(commands.Cog):
             await ctx.reply(embed=embed, ephemeral=True)
             return
 
-        command = self.bot.get_command(command_or_category)
+        command = self.bot.get_command(command_or_group)
         if not command:
             embed = discord.Embed(
                 title=f"{self.bot.error_emoji} Not Found",
-                description=f"Couldn't find a command or category called `{command_or_category}`.",
+                description=f"Couldn't find a command or category called `{command_or_group}`.",
                 colour=discord.Colour.red(),
             )
             embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)

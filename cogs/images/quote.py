@@ -874,6 +874,7 @@ class QuoteCommandsCog(
 
         return embed, file, view
 
+    # TODO: look up how to add argument descriptions here
     @commands.command(
         name="quote",
         description="Create a quote image. To quote messages, right click the message, click apps, then Quote This.",

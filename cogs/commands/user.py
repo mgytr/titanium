@@ -109,6 +109,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
     @commands.hybrid_command(name="pfp", description="Get a user's profile picture.")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.describe(user="Optional: the user to get the PFP of. Defaults to yourself.")
     async def pfp(
         self, ctx: commands.Context["TitaniumBot"], user: Optional[User | Member]
     ) -> None:
@@ -137,6 +138,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
     )
     @commands.guild_only()
     @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.describe(user="Optional: the user to get the PFP of. Defaults to yourself.")
     async def server_pfp(
         self, ctx: commands.Context["TitaniumBot"], user: Optional[Member]
     ) -> None:
@@ -169,7 +171,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
             await ctx.reply(embed=embed)
 
     @commands.hybrid_command(name="banner", description="Get the banner of a user.")
-    @app_commands.describe(user="The user to get the banner of.")
+    @app_commands.describe(user="Optional: the user to get the banner of. Defaults to yourself.")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def banner(
