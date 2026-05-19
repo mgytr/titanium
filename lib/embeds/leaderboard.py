@@ -30,13 +30,9 @@ def generate_lb_embeds(
         data_str = f"{getattr(user_stats, attr):,}{'XP' if show_xp_label else ''}{f', Level {user_stats.level:,}' if show_levels else ''}"
 
         if embed.description:
-            embed.description += (
-                f"\n{i}. <@{user_stats.user_id}> - {data_str}"
-            )
+            embed.description += f"\n{i}. <@{user_stats.user_id}> - {data_str}"
         else:
-            embed.description = (
-                f"{i}. <@{user_stats.user_id}> - {data_str}"
-            )
+            embed.description = f"{i}. <@{user_stats.user_id}> - {data_str}"
 
         if i % page_size == 0:
             pages.append(embed)

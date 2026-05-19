@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from main import TitaniumBot
 
 
-# INFO: a lot of commands here are ported from v1 and the code is bad
+# TODO: a lot of commands here are ported from v1 and the code is bad
 # these could probably do with a rewrite at some point, but they work for now
 class MusicCommandsCog(
     commands.Cog, name="Music", description="Search Spotify and get song lyrics."

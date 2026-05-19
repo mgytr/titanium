@@ -12,6 +12,7 @@ from lib.sql.sql import ErrorLog, get_session
 if TYPE_CHECKING:
     from main import TitaniumBot
 
+
 async def log_error(
     bot: TitaniumBot,
     module: str,

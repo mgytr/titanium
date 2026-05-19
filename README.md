@@ -3,6 +3,7 @@
 Welcome to the Titanium v2 branch! This branch is used for Titanium v2 development, and will eventually become the main Titanium branch.
 
 Titanium v2 includes many new features designed to improve your Discord experience, such as:
+
 - complete rewrite of Titanium v1 to include better code and SQLAlchemy ORM
 - full user app support with info commands, Spotify commands, image commands and more
 - prefix and slash commmand support
@@ -26,6 +27,7 @@ Titanium v2 includes many new features designed to improve your Discord experien
 > You will need to run a PostgreSQL server to run the bot.
 
 ## Database Setup
+
 1. Create a PostgreSQL 18 database - this can be done with Docker or similar tools
 2. Note down the username and password, add these to the .env file along with the host, port and database name
 3. Download and install the [Atlas CLI](https://atlasgo.io/getting-started#installation) (you may also need to install Docker)
@@ -43,9 +45,11 @@ When developing, you may modify, add or remove tables. To migrate the database t
 > If you have manually modified a migration file, you will need to run `atlas migrate hash`, otherwise the migration process will fail.
 
 ### Migrating database
+
 Once you have generated your migration file, or if you have pulled in new migration files from an update, you should now migrate the database. Run the `t!admin migrate-db` command, restart the bot, or use the `--migrate` argument on `main.py`. The database must be running to complete the migration.
 
 ## Download Fonts
+
 Titanium requires some fonts to be downloaded to use features such as the image caption feature. To use these features, please download:
 
 - Figtree Font (figtree.ttf)
@@ -55,6 +59,7 @@ Titanium requires some fonts to be downloaded to use features such as the image 
 Once required fonts have been downloaded, place them into the `lib/fonts` folder.
 
 ## Dashboard
+
 It is recommended to run the [Titanium Dashboard](https://github.com/RestartB/titanium-dashboard) alongside the Titanium bot. This allows you to manage Titanium's settings from a web browser. This is required to manage some features of Titanium, such as the automod and bouncer system.
 
 ## Running the bot

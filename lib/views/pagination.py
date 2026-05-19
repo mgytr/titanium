@@ -196,7 +196,7 @@ class LeaderboardReloadPageView(PaginationView):
                     top_users=top_users,
                     title=self.title,
                     attr=self.reload_type,
-                    show_xp_label=self.reload_type == "xp"
+                    show_xp_label=self.reload_type == "xp",
                 )
             ]
 
