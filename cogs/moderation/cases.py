@@ -86,32 +86,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
                 case_manager = GuildModCaseManager(self.bot, ctx.guild, session)
 
                 if user:
-                    if ctx.channel.permissions_for(ctx.author).manage_guild:
-                        cases_list = await case_manager.get_cases_by_user(user.id)
-                        embeds = await self._build_embeds(cases_list, target=user, user=ctx.author)
-
-                        if embeds == []:
-                            return await ctx.reply(
-                                embed=Embed(
-                                    title=f"{self.bot.error_emoji} No Cases Found",
-                                    description="This user has no moderation cases.",
-                                    colour=Colour.red(),
-                                )
-                            )
-
-                        embeds[0].set_footer(
-                            text=f"Controlling: @{ctx.author.name}"
-                            if len(embeds) > 1
-                            else f"@{ctx.author.name}",
-                            icon_url=ctx.author.display_avatar.url,
-                        )
-
-                        if len(embeds) > 1:
-                            view = PaginationView(embeds, 120)
-                            await ctx.reply(embed=embeds[0], view=view)
-                        else:
-                            await ctx.reply(embed=embeds[0])
-                    else:
+                    if not ctx.channel.permissions_for(ctx.author).manage_guild:
                         return await ctx.reply(
                             embed=Embed(
                                 title=f"{self.bot.error_emoji} Permission Denied",
@@ -119,6 +94,31 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
                                 colour=Colour.red(),
                             )
                         )
+
+                    cases_list = await case_manager.get_cases_by_user(user.id)
+                    embeds = await self._build_embeds(cases_list, target=user, user=ctx.author)
+
+                    if embeds == []:
+                        return await ctx.reply(
+                            embed=Embed(
+                                title=f"{self.bot.error_emoji} No Cases Found",
+                                description="This user has no moderation cases.",
+                                colour=Colour.red(),
+                            )
+                        )
+
+                    embeds[0].set_footer(
+                        text=f"Controlling: @{ctx.author.name}"
+                        if len(embeds) > 1
+                        else f"@{ctx.author.name}",
+                        icon_url=ctx.author.display_avatar.url,
+                    )
+
+                    if len(embeds) > 1:
+                        view = PaginationView(embeds, 120)
+                        await ctx.reply(embed=embeds[0], view=view)
+                    else:
+                        await ctx.reply(embed=embeds[0])
                 else:
                     cases_list = await case_manager.get_cases_by_user(ctx.author.id)
                     embeds = await self._build_embeds(cases_list, ctx.author, ctx.author)

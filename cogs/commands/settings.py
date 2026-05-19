@@ -18,7 +18,7 @@ from discord.ui import (
     TextDisplay,
     Thumbnail,
 )
-from sqlalchemy import select
+from sqlalchemy import delete
 from sqlalchemy.orm.attributes import flag_modified
 
 from lib.helpers.hybrid import SlashCommandOnly
@@ -27,6 +27,7 @@ from lib.sql.sql import (
     GuildSettings,
     LeaderboardUserStats,
     OptOutIDs,
+    Tag,
     get_session,
 )
 
@@ -228,15 +229,14 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
                 await session.commit()
                 await self.bot.refresh_opt_out()
 
-                leaderboard_entries = await session.execute(
-                    select(LeaderboardUserStats).where(
+                await session.execute(
+                    delete(LeaderboardUserStats).where(
                         LeaderboardUserStats.user_id == interaction.user.id
                     )
                 )
-                entries = leaderboard_entries.scalars().all()
-
-                for entry in entries:
-                    await session.delete(entry)
+                await session.execute(
+                    delete(Tag).where(Tag.is_user, Tag.owner_id == interaction.user.id)
+                )
 
         await interaction.followup.send(
             embed=Embed(
