@@ -3,6 +3,7 @@ import os
 from io import BytesIO
 from textwrap import shorten
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 import aiohttp
 import discord
@@ -17,6 +18,7 @@ import lib.embeds.spotify as elements
 from lib.classes.spotify import TitaniumSpotifyClient
 from lib.helpers.hybrid import defer, handle_group_command_not_found
 from lib.helpers.log_error import log_error
+from lib.views.spotify import SongLyricSelection
 
 if TYPE_CHECKING:
     from main import TitaniumBot
@@ -892,6 +894,62 @@ class MusicCommandsCog(
                     icon_url=ctx.author.display_avatar.url,
                 )
                 await ctx.reply(embed=embed, ephemeral=ephemeral)
+
+    @commands.hybrid_command(name="lyrics", description="Search for the lyrics of a song.")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.describe(
+        search="The term to search for.",
+        ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
+    )
+    async def lyrics(
+        self,
+        ctx: commands.Context["TitaniumBot"],
+        *,
+        search: commands.Range[str, 1, 100],
+        ephemeral: bool = False,
+    ) -> None:
+        await ctx.defer(ephemeral=ephemeral)
+
+        url = f"https://lrclib.net/api/search?q={quote(search)}"
+        headers = {"User-Agent": os.getenv("REQUEST_USER_AGENT", "")}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                response.raise_for_status()
+                data = await response.json()
+
+        if data == []:
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Not Found",
+                description="No results were found for your search. Please try another search term.",
+                colour=Colour.red(),
+            )
+            await ctx.reply(embed=embed, ephemeral=ephemeral)
+            return
+
+        selector = SongLyricSelection()
+        for lyric_data in data:
+            selector.add_option(
+                label=shorten(lyric_data["name"], width=100, placeholder="..."),
+                value=lyric_data["id"],
+                description=shorten(
+                    f"{lyric_data['artistName']} - {lyric_data['albumName']}",
+                    width=100,
+                    placeholder="...",
+                ),
+            )
+
+        embed = discord.Embed(
+            title=f"{self.bot.info_emoji} Select a song",
+            description=f"`{len(data)}` results were found for `{search}`. Select an option below.",
+            colour=Colour.light_grey(),
+        )
+
+        view = View(timeout=900)
+        view.add_item(selector)
+
+        await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
 
 
 async def setup(bot: TitaniumBot) -> None:

@@ -5,7 +5,7 @@ from urllib.parse import quote, quote_plus
 
 import aiohttp
 import discord
-from discord import ButtonStyle, Colour, Embed, Interaction, InteractionMessage, WebhookMessage
+from discord import ButtonStyle, Colour, Embed, Interaction, WebhookMessage
 from discord.ui import Button, Select, View, button
 
 import lib.views.pagination as page_views
@@ -157,7 +157,7 @@ class SongMenuView(View):
                 if response.status == 200:
                     data = await response.json()
                     if data != []:
-                        selector = SongLyricSelection(item=self.item)
+                        selector = SongLyricSelection()
                         for lyric_data in data:
                             selector.add_option(
                                 label=shorten(lyric_data["name"], width=100, placeholder="..."),
@@ -193,14 +193,12 @@ class SongMenuView(View):
 
 
 class SongLyricSelection(Select):
-    def __init__(self, item: SpotifyTrack):
+    def __init__(self):
         super().__init__(
             placeholder="Select a song",
             min_values=1,
             max_values=1,
         )
-
-        self.item = item
 
     async def callback(self, interaction: Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -277,7 +275,7 @@ class SongLyricsSelectionView(View):
     def __init__(self):
         super().__init__(timeout=900)
 
-        self.message: InteractionMessage
+        self.message: discord.Message
 
     async def on_timeout(self):
         await self.message.delete()
