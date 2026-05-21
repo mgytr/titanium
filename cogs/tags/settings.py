@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import discord
 from discord import app_commands
@@ -7,7 +7,7 @@ from discord.ext import commands
 from cogs.tags.tags import tag_autocomplete_base
 from lib.embeds.general import cancelled
 from lib.helpers.validation import is_valid_uuid
-from lib.sql.sql import Tag, get_session
+from lib.sql.sql import GuildSettings, Tag, get_session
 from lib.views.confirm import ConfirmView
 from lib.views.tags_modals import TagModal
 
@@ -19,12 +19,16 @@ class TagSettingsCog(commands.Cog):
     def __init__(self, bot: TitaniumBot) -> None:
         self.bot = bot
 
-    def __get_if_server_tag_allowed(self, interaction: discord.Interaction["TitaniumBot"]) -> bool:
+    def __get_if_server_tag_allowed(
+        self, interaction: discord.Interaction["TitaniumBot"], config: Optional[GuildSettings]
+    ) -> bool:
         return bool(
             interaction.guild
             and isinstance(interaction.user, discord.Member)
             and interaction.guild.id in [role.id for role in interaction.user.roles]
             and interaction.user.guild_permissions.manage_guild
+            and config
+            and config.tags_enabled
         )
 
     context = discord.app_commands.AppCommandContext(
@@ -45,17 +49,40 @@ class TagSettingsCog(commands.Cog):
     )
     @app_commands.checks.cooldown(1, 3)
     async def add_tag(self, interaction: discord.Interaction["TitaniumBot"]):
-        modal = TagModal(server_tag_allowed=self.__get_if_server_tag_allowed(interaction))
+        config = (
+            await self.bot.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id
+            else None
+        )
+
+        server_tag_allowed = self.__get_if_server_tag_allowed(interaction, config)
+        user_tag_allowed = interaction.user.id not in self.bot.opt_out
+
+        if not server_tag_allowed and not user_tag_allowed:
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} No Possible Options",
+                description="You are not able to create server tags in this server, and you have opted out of optional data collection for user tags. There are no further options available.",
+                colour=discord.Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        modal = TagModal(server_tag_allowed=server_tag_allowed, user_tag_allowed=user_tag_allowed)
         await interaction.response.send_modal(modal)
 
     async def tag_autocomplete(
         self, interaction: discord.Interaction["TitaniumBot"], current: str
     ) -> list[app_commands.Choice[str]]:
+        config = (
+            await self.bot.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id
+            else None
+        )
         return await tag_autocomplete_base(
             bot=self.bot,
             interaction=interaction,
             current=current,
-            verify=self.__get_if_server_tag_allowed(interaction),
+            verify=self.__get_if_server_tag_allowed(interaction, config),
         )
 
     # Edit tag command
@@ -92,7 +119,13 @@ class TagSettingsCog(commands.Cog):
             )
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
-        if not to_edit.is_user and not self.__get_if_server_tag_allowed(interaction):
+        config = (
+            await self.bot.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id
+            else None
+        )
+
+        if not to_edit.is_user and not self.__get_if_server_tag_allowed(interaction, config):
             embed = discord.Embed(
                 title=f"{self.bot.error_emoji} No Permissions",
                 description="You are not allowed to create or modify server tags. Please ensure you have the **Manage Guild** permission.",
@@ -101,7 +134,9 @@ class TagSettingsCog(commands.Cog):
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
         modal = TagModal(
-            server_tag_allowed=self.__get_if_server_tag_allowed(interaction), existing_tag=to_edit
+            server_tag_allowed=self.__get_if_server_tag_allowed(interaction, config),
+            user_tag_allowed=interaction.user.id not in self.bot.opt_out,
+            existing_tag=to_edit,
         )
         await interaction.response.send_modal(modal)
 
@@ -139,7 +174,13 @@ class TagSettingsCog(commands.Cog):
             )
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
-        if not to_delete.is_user and not self.__get_if_server_tag_allowed(interaction):
+        config = (
+            await self.bot.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id
+            else None
+        )
+
+        if not to_delete.is_user and not self.__get_if_server_tag_allowed(interaction, config):
             embed = discord.Embed(
                 title=f"{self.bot.error_emoji} No Permissions",
                 description="You are not allowed to create or modify server tags. Please ensure you have the **Manage Guild** permission.",

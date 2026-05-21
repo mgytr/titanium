@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Optional
 
 import discord
 from discord import app_commands
@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from lib.embeds.general import cancelled
 from lib.helpers.validation import is_valid_uuid
-from lib.sql.sql import Tag, get_session
+from lib.sql.sql import GuildSettings, Tag, get_session
 from lib.views.pagination import PaginationView
 
 if TYPE_CHECKING:
@@ -56,9 +56,6 @@ async def tag_autocomplete_base(
 
     if server_tags_allowed and interaction.guild:
         config = await bot.fetch_guild_config(interaction.guild.id)
-        if config and not config.tags_enabled:
-            user_tags_allowed = False
-
         if config and config.tag_settings and not config.tag_settings.allow_user_tags:
             user_tags_allowed = False
 
@@ -153,13 +150,17 @@ class TagCommandsCog(commands.Cog):
         self.bot = bot
 
     def __server_tag_available(
-        self, ctx: commands.Context["TitaniumBot"] | discord.Interaction["TitaniumBot"]
+        self,
+        ctx: commands.Context["TitaniumBot"] | discord.Interaction["TitaniumBot"],
+        config: Optional[GuildSettings],
     ) -> bool:
         author = ctx.author if isinstance(ctx, commands.Context) else ctx.user
         return bool(
             ctx.guild
             and isinstance(author, discord.Member)
             and ctx.guild.id in [role.id for role in author.roles]
+            and config
+            and config.tags_enabled
         )
 
     async def push_tag_usage(self, tag: Tag) -> None:
@@ -172,7 +173,8 @@ class TagCommandsCog(commands.Cog):
     async def command_not_found_hook(
         self, ctx: commands.Context["TitaniumBot"], error: Any
     ) -> bool:
-        if not self.__server_tag_available(ctx) or not ctx.guild:
+        config = await self.bot.fetch_guild_config(ctx.guild.id) if ctx.guild else None
+        if not self.__server_tag_available(ctx, config) or not ctx.guild:
             return False
 
         config = await self.bot.fetch_guild_config(ctx.guild.id)
@@ -196,35 +198,17 @@ class TagCommandsCog(commands.Cog):
     async def tag_autocomplete(
         self, interaction: discord.Interaction["TitaniumBot"], current: str
     ) -> list[app_commands.Choice[str]]:
+        config = (
+            await self.bot.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id
+            else None
+        )
         return await tag_autocomplete_base(
             bot=self.bot,
             interaction=interaction,
             current=current,
-            verify=self.__server_tag_available(interaction),
+            verify=self.__server_tag_available(interaction, config),
         )
-
-    async def cog_check(self, ctx: commands.Context["TitaniumBot"]) -> bool:
-        await ctx.defer()
-
-        if not ctx.guild:
-            return True
-
-        config = await self.bot.fetch_guild_config(ctx.guild.id)
-        if not config or not config.tags_enabled:
-            await ctx.reply(
-                embed=discord.Embed(
-                    colour=discord.Colour.red(),
-                    title=f"{self.bot.error_emoji} Tags Disabled",
-                    description="The tags module is disabled in this server. Ask a server admin to turn it on using the `/settings overview` command or the Titanium Dashboard.",
-                ),
-                ephemeral=True,
-            )
-            return False
-
-        if config and config.tags_enabled and not config.tag_settings:
-            await ctx.bot.init_guild(ctx.guild.id)
-
-        return True
 
     # Use tag command
     @commands.hybrid_group(
@@ -236,6 +220,8 @@ class TagCommandsCog(commands.Cog):
     @app_commands.describe(tag="The tag to send.")
     @app_commands.autocomplete(tag=tag_autocomplete)
     async def tags_group(self, ctx: commands.Context["TitaniumBot"], tag: str):
+        await ctx.defer()
+
         if not tag:
             embed = discord.Embed(
                 title=f"{ctx.bot.error_emoji} Enter a tag name",
@@ -244,14 +230,12 @@ class TagCommandsCog(commands.Cog):
             )
             return await ctx.reply(embed=embed)
 
+        config = await self.bot.fetch_guild_config(ctx.guild.id) if ctx.guild else None
         user_tags_allowed = True
-        server_tags_allowed = self.__server_tag_available(ctx)
+        server_tags_allowed = self.__server_tag_available(ctx, config)
 
         if server_tags_allowed and ctx.guild:
             config = await self.bot.fetch_guild_config(ctx.guild.id)
-            if config and not config.tags_enabled:
-                user_tags_allowed = False
-
             if config and config.tag_settings and not config.tag_settings.allow_user_tags:
                 user_tags_allowed = False
 
@@ -362,10 +346,13 @@ class TagCommandsCog(commands.Cog):
     async def view_all_tags(
         self, ctx: commands.Context["TitaniumBot"], mode: Literal["server", "user"] = "user"
     ):
-        if mode == "server" and not self.__server_tag_available(ctx):
+        await ctx.defer()
+
+        config = await self.bot.fetch_guild_config(ctx.guild.id) if ctx.guild else None
+        if mode == "server" and not self.__server_tag_available(ctx, config):
             embed = discord.Embed(
                 title=f"{ctx.bot.error_emoji} Not Available",
-                description="Server tags are only available in servers with Titanium.",
+                description="Server tags are only available in servers with Titanium and the tags module enabled.",
                 colour=discord.Colour.red(),
             )
             return await ctx.reply(embed=embed)

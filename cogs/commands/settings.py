@@ -21,15 +21,19 @@ from discord.ui import (
 from sqlalchemy import delete
 from sqlalchemy.orm.attributes import flag_modified
 
+from lib.embeds.general import cancelled
 from lib.helpers.hybrid import SlashCommandOnly
 from lib.sql.sql import (
+    GameStat,
     GuildPrefixes,
     GuildSettings,
     LeaderboardUserStats,
+    ModCaseComment,
     OptOutIDs,
     Tag,
     get_session,
 )
+from lib.views.confirm import ConfirmView
 
 if TYPE_CHECKING:
     from main import TitaniumBot
@@ -90,19 +94,19 @@ class SettingsView(LayoutView):
         container = Container()
 
         dashboard_text = (
-            f"[Titanium Dashboard.](https://dash.titaniumbot.me/guild/{interaction.guild.id})"
+            f"[Titanium Dashboard](https://dash.titaniumbot.me/guild/{interaction.guild.id})"
         )
 
         if interaction.guild.icon:
             top_section = Section(accessory=Thumbnail(media=interaction.guild.icon.url))
             top_section.add_item(
                 TextDisplay(
-                    f"## Server Settings\nFor the **{interaction.guild.name}** server. To manage more settings, please go to the {dashboard_text}"
+                    f"## Server Settings\nFor the **{interaction.guild.name}** server. To manage more settings, please go to the {dashboard_text}."
                 )
             )
         else:
             top_section = TextDisplay(
-                f"## Server Settings\nFor the **{interaction.guild.name}** server. To manage more settings, please go to the {dashboard_text}"
+                f"## Server Settings\nFor the **{interaction.guild.name}** server. To manage more settings, please go to the {dashboard_text}."
             )
 
         container.add_item(top_section)
@@ -211,40 +215,146 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
         await interaction.followup.send(view=view, ephemeral=True)
 
     @app_commands.command(
-        name="remove-data", description="Remove data about your account from Titanium's servers."
+        name="opt-out",
+        description="Opt out of optional data collection, and delete optional data stored on Titanium systems.",
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def remove_data(self, interaction: Interaction) -> None:
-        if not interaction.guild or not interaction.guild_id or not self.bot.user:
+        await interaction.response.defer(ephemeral=True)
+
+        if interaction.user.id in self.bot.opt_out:
+            await interaction.followup.send(
+                embed=Embed(
+                    title=f"{self.bot.success_emoji} Already Opted Out",
+                    description="You are already opted out of optional data collection.",
+                    colour=Colour.green(),
+                ),
+                ephemeral=True,
+            )
             return
 
+        embed = Embed(
+            title=f"{self.bot.warn_emoji} Are you sure?",
+            description="If you opt out, Titanium will delete optional data associated with your account (such as tags and leaderboard stats). New optional data will not be collected unless you opt in again.",
+            colour=Colour.orange(),
+        )
+        embed.add_field(
+            name=f"{self.bot.info_emoji} Required Data",
+            value="You cannot opt out of required operational data, including command analytics, error logs, server (guild) data, and moderation cases.",
+        )
+
+        view = ConfirmView(self.bot, ephemeral=True)
+        view.interaction = interaction
+
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        await view.wait()
+
+        if not view.interaction:
+            raise Exception("Impossible: interaction is missing")
+
+        if not view.value:
+            await view.interaction.edit_original_response(embed=cancelled(self.bot), view=None)
+            return
+
+        if interaction.user.id in self.bot.opt_out:
+            await view.interaction.edit_original_response(
+                embed=Embed(
+                    title=f"{self.bot.success_emoji} Already Opted Out",
+                    description="You are already opted out of optional data collection.",
+                    colour=Colour.green(),
+                ),
+                view=None,
+            )
+            return
+
+        async with get_session() as session:
+            opt_out_entry = OptOutIDs(id=interaction.user.id)
+            session.add(opt_out_entry)
+
+            await session.commit()
+            await self.bot.refresh_opt_out()
+
+            await session.execute(
+                delete(LeaderboardUserStats).where(
+                    LeaderboardUserStats.user_id == interaction.user.id
+                )
+            )
+            await session.execute(
+                delete(Tag).where(Tag.is_user, Tag.owner_id == interaction.user.id)
+            )
+            await session.execute(
+                delete(ModCaseComment).where(ModCaseComment.user_id == interaction.user.id)
+            )
+            await session.execute(delete(GameStat).where(GameStat.user_id == interaction.user.id))
+
+        await view.interaction.edit_original_response(
+            embed=Embed(
+                title=f"{self.bot.success_emoji} Opted Out",
+                description="You have opted out of future optional data collection. User data has been removed.",
+                colour=Colour.green(),
+            ),
+            view=None,
+        )
+
+    @app_commands.command(name="opt-in", description="Opt back into optional data collection.")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def opt_in(self, interaction: Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
 
         if interaction.user.id not in self.bot.opt_out:
-            async with get_session() as session:
-                opt_out_entry = OptOutIDs(id=interaction.user.id)
-                session.add(opt_out_entry)
+            await interaction.followup.send(
+                embed=Embed(
+                    title=f"{self.bot.success_emoji} Already Opted In",
+                    description="You are already opted into data collection, and can make use of all Titanium features.",
+                    colour=Colour.green(),
+                ),
+                ephemeral=True,
+            )
+            return
 
-                await session.commit()
-                await self.bot.refresh_opt_out()
+        embed = Embed(
+            title=f"{self.bot.warn_emoji} Are you sure?",
+            description="By opting back into optional data collection, you will be able to use all Titanium features again.",
+            colour=Colour.orange(),
+        )
 
-                await session.execute(
-                    delete(LeaderboardUserStats).where(
-                        LeaderboardUserStats.user_id == interaction.user.id
-                    )
-                )
-                await session.execute(
-                    delete(Tag).where(Tag.is_user, Tag.owner_id == interaction.user.id)
-                )
+        view = ConfirmView(self.bot, ephemeral=True)
+        view.interaction = interaction
 
-        await interaction.followup.send(
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        await view.wait()
+
+        if not view.interaction:
+            raise Exception("Impossible: interaction is missing")
+
+        if not view.value:
+            await view.interaction.edit_original_response(embed=cancelled(self.bot), view=None)
+            return
+
+        if interaction.user.id not in self.bot.opt_out:
+            await view.interaction.edit_original_response(
+                embed=Embed(
+                    title=f"{self.bot.success_emoji} Already Opted In",
+                    description="You are already opted into data collection, and can make use of all Titanium features.",
+                    colour=Colour.green(),
+                ),
+                view=None,
+            )
+            return
+
+        async with get_session() as session:
+            await session.execute(delete(OptOutIDs).where(OptOutIDs.id == interaction.user.id))
+        await self.bot.refresh_opt_out()
+
+        await view.interaction.edit_original_response(
             embed=Embed(
-                title=f"{self.bot.success_emoji} Data Removed",
-                description="User data has been removed.",
+                title=f"{self.bot.success_emoji} Opted In",
+                description="You have back into optional data collection. You can now use all Titanium features again.",
                 colour=Colour.green(),
             ),
-            ephemeral=True,
+            view=None,
         )
 
     @prefix_group.command(name="add", description="Add a command prefix.")

@@ -62,6 +62,7 @@ class LeaderboardCog(commands.Cog):
             return
 
         if message.author.id in self.bot.opt_out:
+            self.logger.debug(f"User has opted out: {message.author.id}")
             return
 
         guild_settings = await self.bot.fetch_guild_config(message.guild.id)
@@ -259,7 +260,7 @@ class LeaderboardCog(commands.Cog):
         if ctx.author.id in self.bot.opt_out:
             embed = discord.Embed(
                 title=f"{self.bot.error_emoji} Opted Out",
-                description="You have opted out of data collection and cannot use leaderboard features.",
+                description="You have opted out of optional data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
             await ctx.reply(embed=embed)
@@ -348,7 +349,7 @@ class LeaderboardCog(commands.Cog):
         if user.id in self.bot.opt_out:
             embed = discord.Embed(
                 title=f"{self.bot.error_emoji} Opted Out",
-                description="This user has opted out of data collection and cannot use leaderboard features.",
+                description="This user has opted out of optional data collection and cannot use leaderboard features.",
                 colour=discord.Colour.red(),
             )
             await ctx.reply(embed=embed)
@@ -442,6 +443,15 @@ class LeaderboardCog(commands.Cog):
 
         await ctx.defer()
 
+        if user.id in self.bot.opt_out:
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Opted Out",
+                description="This user has opted out of optional data collection and cannot use leaderboard features.",
+                colour=discord.Colour.red(),
+            )
+            await ctx.reply(embed=embed)
+            return
+
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
         if (
             not guild_settings
@@ -489,6 +499,15 @@ class LeaderboardCog(commands.Cog):
             return
 
         await ctx.defer()
+
+        if user.id in self.bot.opt_out:
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Opted Out",
+                description="This user has opted out of optional data collection and cannot use leaderboard features.",
+                colour=discord.Colour.red(),
+            )
+            await ctx.reply(embed=embed)
+            return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
         if (
@@ -542,6 +561,15 @@ class LeaderboardCog(commands.Cog):
             return
 
         await ctx.defer()
+
+        if user.id in self.bot.opt_out:
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Opted Out",
+                description="This user has opted out of optional data collection and cannot use leaderboard features.",
+                colour=discord.Colour.red(),
+            )
+            await ctx.reply(embed=embed)
+            return
 
         guild_settings = await self.bot.fetch_guild_config(ctx.guild.id)
         if (

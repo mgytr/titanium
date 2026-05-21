@@ -54,10 +54,15 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
     )
 
     def __init__(
-        self, server_tag_allowed: bool, timeout: float = 240, existing_tag: Optional[Tag] = None
+        self,
+        server_tag_allowed: bool,
+        user_tag_allowed: bool,
+        timeout: float = 240,
+        existing_tag: Optional[Tag] = None,
     ) -> None:
         super().__init__(timeout=timeout)
         self.server_tag_allowed = server_tag_allowed
+        self.user_tag_allowed = user_tag_allowed
         self.existing_tag = existing_tag
         self.is_server_tag = False
 
@@ -65,8 +70,13 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
         assert isinstance(self.tag_name.component, discord.ui.TextInput)
         assert isinstance(self.tag_content.component, discord.ui.TextInput)
 
-        if not server_tag_allowed:
-            self.tag_type.component.options.pop(1)
+        if not user_tag_allowed and server_tag_allowed:
+            self.remove_item(self.tag_type)
+            self.is_server_tag = True
+            self.title = "Server Tag Information"
+        elif user_tag_allowed and not server_tag_allowed:
+            self.remove_item(self.tag_type)
+            self.title = "User Tag Information"
 
         if existing_tag:
             self.remove_item(self.tag_type)
@@ -128,7 +138,8 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
             )
             return await interaction.followup.send(embed=embed, ephemeral=True)
 
-        self.is_server_tag = self.tag_type.component.value == "server"
+        if not self.is_server_tag:
+            self.is_server_tag = self.tag_type.component.value == "server"
 
         if self.is_server_tag and interaction.guild:
             config = await interaction.client.fetch_guild_config(interaction.guild.id)
@@ -214,12 +225,20 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
                         )
                         return await interaction.followup.send(embed=embed, ephemeral=True)
 
+                if interaction.user.id in interaction.client.opt_out and not self.is_server_tag:
+                    embed = discord.Embed(
+                        title=f"{interaction.client.error_emoji} Opted Out",
+                        description="You have opted out of data collection and cannot create user tags.",
+                        colour=discord.Colour.red(),
+                    )
+                    return await interaction.followup.send(embed=embed, ephemeral=True)
+
                 new_tag = Tag(
                     guild_id=interaction.guild.id
-                    if interaction.guild and self.tag_type.component.value == "server"
+                    if interaction.guild and self.is_server_tag
                     else None,
                     owner_id=interaction.user.id,
-                    is_user=self.tag_type.component.value == "user",
+                    is_user=not self.is_server_tag,
                     name=cleaned_name,
                     content=self.tag_content.component.value.strip(),
                 )
@@ -243,7 +262,7 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
 
             embed = discord.Embed(
                 title=f"{interaction.client.success_emoji} Done",
-                description=f"Created a new {self.tag_type.component.value} tag: `{cleaned_name}`",
+                description=f"Created a new {'server' if self.is_server_tag else 'user'} tag: `{cleaned_name}`",
                 colour=discord.Colour.green(),
             )
 

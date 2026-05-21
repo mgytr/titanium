@@ -38,6 +38,15 @@ class GameCog(commands.Cog, name="Games", description="Play various simple games
         """Get the all games stats, How many times they played, and win"""
         await ctx.defer()
 
+        if ctx.author.id in self.bot.opt_out:
+            embed = Embed(
+                title=f"{self.bot.error_emoji} Opted Out",
+                description="This user has opted out of optional data collection and cannot use game statistic tracking.",
+                colour=Colour.red(),
+            )
+            await ctx.reply(embed=embed)
+            return
+
         async with get_session() as session:
             stmt = select(GameStat).where(GameStat.user_id == user.id)
             result = await session.execute(stmt)
@@ -128,7 +137,7 @@ class GameCog(commands.Cog, name="Games", description="Play various simple games
         """Update stats after the game finishes."""
         win = getattr(ctx, "win", False)
 
-        if not ctx.command:
+        if not ctx.command or ctx.author.id in self.bot.opt_out:
             return
 
         async with get_session() as session:

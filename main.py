@@ -343,6 +343,7 @@ class TitaniumBot(commands.Bot):
 
     async def setup_hook(self):
         await init_db()
+        await self.refresh_opt_out()
         await self.refresh_all_caches()
 
         self.trusted_servers = (
