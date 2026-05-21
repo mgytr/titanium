@@ -53,7 +53,7 @@ class BasicCommandsCog(
             description=(
                 f"{self.websocket_emoji_select(self.bot.latency)} **Websocket latency:** `{self.bot.latency * 1000:.2f}ms`\n"
                 f"{self.api_emoji_select(self.bot.api_latency)} **Discord API latency:** `{f'{self.bot.api_latency * 1000:.2f}ms' if self.bot.api_latency > 0 else 'Unavailable'}`"
-                "\n\nIs ping high or is the bot running slow? Check the [status page](https://titaniumbot.me/status) or join the [support server](https://titaniumbot.me/server) for help!"
+                "\n\nIs ping high or is the bot running slow? Check the [status page](https://titaniumbot.me/status) or join the [support server](https://titaniumbot.me/server) for help."
             ),
             colour=Colour.green(),
         )

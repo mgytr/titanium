@@ -35,8 +35,7 @@ class HelpCommandCog(commands.Cog):
             embed = discord.Embed(
                 title=f"{self.bot.info_emoji} Help",
                 description=f"`{ctx.clean_prefix}help commands` - get a list of all commands\n"
-                f"`{ctx.clean_prefix}help <command | group>` - get info about a command or command group\n"
-                "\n**Need more help? Join the [Support Server](https://titaniumbot.me/server)**",
+                f"`{ctx.clean_prefix}help <command | group>` - get info about a command or command group\n",
                 colour=discord.Colour.light_grey(),
             )
             embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)
@@ -45,6 +44,30 @@ class HelpCommandCog(commands.Cog):
                 embed.set_author(
                     name=self.bot.user.display_name, icon_url=self.bot.user.display_avatar.url
                 )
+
+            if (
+                ctx.guild
+                and isinstance(ctx.author, discord.Member)
+                and ctx.guild.id in [role.id for role in ctx.author.roles]
+                and self.bot.user
+            ):
+                config = await self.bot.fetch_guild_config(ctx.guild.id)
+                if config and config.allow_prefix:
+                    if config.prefixes and config.prefixes.prefixes:
+                        value = (
+                            f"`{'`, `'.join(config.prefixes.prefixes)}`, {self.bot.user.mention}"
+                        )
+                    else:
+                        value = self.bot.user.mention
+
+                    embed.add_field(
+                        name=f"Prefixes for {ctx.guild.name}", value=value, inline=False
+                    )
+
+            embed.add_field(
+                name="Need more help?",
+                value="Join the **[Support Server](https://titaniumbot.me/server)** for feature and status updates, support, and more.",
+            )
 
             await ctx.reply(embed=embed, ephemeral=True)
             return
@@ -147,6 +170,14 @@ class HelpCommandCog(commands.Cog):
                     text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar
                 )
             )
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message) -> None:
+        if not self.bot.user or message.content.strip() != self.bot.user.mention:
+            return
+
+        ctx = await self.bot.get_context(message)
+        await ctx.invoke(self.help_group)
 
 
 async def setup(bot: TitaniumBot) -> None:
