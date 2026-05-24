@@ -161,15 +161,30 @@ class BasicCommandsCog(
         await ctx.defer()
 
         prefix_str = ""
-        if self.bot.guild_prefixes.get(ctx.guild.id):
-            for i, prefix in enumerate(self.bot.guild_prefixes[ctx.guild.id].prefixes):
-                if i == 0:
-                    prefix_str = f"`{prefix}`"
-                    continue
+        config = await self.bot.fetch_guild_config(ctx.guild.id)
+        assert config, "No guild config found"
 
-                prefix_str += f", `{prefix}`"
-        else:
-            prefix_str = "`t!`"
+        if not config.allow_prefix:
+            embed = Embed(
+                title=f"{self.bot.error_emoji} Disabled",
+                description="Prefix commands are disabled in this server.",
+                colour=Colour.red(),
+            )
+            embed.set_author(
+                name=ctx.guild.name,
+                icon_url=ctx.guild.icon.url if ctx.guild.icon else None,
+            )
+            embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)
+
+            await ctx.reply(embed=embed)
+            return
+
+        for i, prefix in enumerate(config.prefixes):
+            if i == 0:
+                prefix_str = f"`{prefix}`"
+                continue
+
+            prefix_str += f", `{prefix}`"
 
         prefix_str = prefix_str + (
             f", {self.bot.user.mention}" if prefix_str else self.bot.user.mention
@@ -180,7 +195,6 @@ class BasicCommandsCog(
             description=prefix_str,
             colour=Colour.green(),
         )
-
         embed.set_author(
             name=ctx.guild.name,
             icon_url=ctx.guild.icon.url if ctx.guild.icon else None,

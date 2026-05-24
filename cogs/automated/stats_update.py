@@ -90,17 +90,18 @@ class StatsUpdateCog(commands.Cog):
     # Measure API latency task
     @tasks.loop(minutes=1)
     async def measure_api_latency(self) -> None:
-        async with aiohttp.ClientSession() as session:
-            session.headers.update(
-                {
-                    "Content-Type": "Application/json",
-                    "Authorization": "Bot " + self.bot.http.token,  # type: ignore
-                }
-            )
+        assert self.bot.http.token, "No HTTP token"
 
+        async with aiohttp.ClientSession() as session:
             try:
                 start = time.perf_counter()
-                async with session.get("https://discord.com/api/v10/users/@me") as request:
+                async with session.get(
+                    "https://discord.com/api/v10/users/@me",
+                    headers={
+                        "Content-Type": "Application/json",
+                        "Authorization": "Bot " + self.bot.http.token,
+                    },
+                ) as request:
                     request.raise_for_status()
 
                     delta = time.perf_counter() - start

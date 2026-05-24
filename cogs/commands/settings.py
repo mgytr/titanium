@@ -1,5 +1,7 @@
-from typing import TYPE_CHECKING
+# TODO: always enforce permissions on each action
+from typing import TYPE_CHECKING, Optional
 
+import discord
 from discord import (
     ButtonStyle,
     Colour,
@@ -10,22 +12,26 @@ from discord import (
 )
 from discord.ext import commands
 from discord.ui import (
+    ActionRow,
     Button,
     Container,
     LayoutView,
+    Modal,
     Section,
+    Select,
     Separator,
     TextDisplay,
+    TextInput,
     Thumbnail,
 )
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm.attributes import flag_modified
 
 from lib.embeds.general import cancelled
 from lib.helpers.hybrid import SlashCommandOnly
+from lib.helpers.validation import is_valid_uuid
 from lib.sql.sql import (
     GameStat,
-    GuildPrefixes,
     GuildSettings,
     LeaderboardUserStats,
     ModCaseComment,
@@ -34,9 +40,31 @@ from lib.sql.sql import (
     get_session,
 )
 from lib.views.confirm import ConfirmView
+from lib.views.pagination import PaginationV2View
+from lib.views.tags_modals import TagModal
 
 if TYPE_CHECKING:
     from main import TitaniumBot
+
+
+def dashboard_url(guild_id: int) -> str:
+    return f"[Titanium Dashboard](https://dash.titaniumbot.me/guild/{guild_id})"
+
+
+# region Buttons
+class OpenPageButton(Button["SettingsView"]):
+    def __init__(
+        self,
+        target_view: LayoutView,
+        label: str = "",
+        style: discord.ButtonStyle = ButtonStyle.secondary,
+    ) -> None:
+        super().__init__(label=label, style=style)
+        self.target_view = target_view
+
+    async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
+        await interaction.response.defer(ephemeral=True)
+        await interaction.edit_original_response(view=self.target_view)
 
 
 class FeatureToggleButton(Button["SettingsView"]):
@@ -60,7 +88,7 @@ class FeatureToggleButton(Button["SettingsView"]):
             self.emoji = self.bot.error_emoji
             self.style = ButtonStyle.red
 
-    async def callback(self, interaction: Interaction) -> None:
+    async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
         if not interaction.guild_id:
             return
 
@@ -70,7 +98,6 @@ class FeatureToggleButton(Button["SettingsView"]):
 
         async with get_session() as session:
             guild_settings = await session.get(GuildSettings, interaction.guild_id)
-
             if not guild_settings:
                 guild_settings = GuildSettings(guild_id=interaction.guild_id)
                 session.add(guild_settings)
@@ -82,100 +109,763 @@ class FeatureToggleButton(Button["SettingsView"]):
         await interaction.response.edit_message(view=self.view)
 
 
-class SettingsView(LayoutView):
-    """Settings quick option commands"""
+# endregion
 
-    def __init__(self, interaction: Interaction, bot: TitaniumBot, settings: GuildSettings) -> None:
+
+# region Tag Views
+def _get_if_server_tag_allowed(
+    interaction: discord.Interaction["TitaniumBot"], config: Optional[GuildSettings]
+) -> bool:
+    return bool(
+        interaction.guild
+        and isinstance(interaction.user, discord.Member)
+        and interaction.guild.id in [role.id for role in interaction.user.roles]
+        and interaction.user.guild_permissions.manage_guild
+        and config
+        and config.tags_enabled
+    )
+
+
+async def build_tags_pagination_view(
+    interaction: discord.Interaction["TitaniumBot"],
+    user_tag: bool,
+    previous_view: Optional[LayoutView],
+) -> LayoutView:
+    if user_tag:
+        stmt = (
+            select(Tag)
+            .where(Tag.is_user, Tag.owner_id == interaction.user.id)
+            .order_by(Tag.name.asc())
+        )
+    else:
+        stmt = select(Tag).where(Tag.guild_id == interaction.guild_id).order_by(Tag.name.asc())
+
+    async with get_session() as session:
+        tags = (await session.execute(stmt)).scalars().all()
+
+    if len(tags) == 0:
+        container_pages = [
+            SelectTagContainer(
+                this_page=[],
+                user_tag=user_tag,
+                previous_view=previous_view,
+            )
+        ]
+        view = PaginationV2View(container_pages, timeout=600)
+        return view
+
+    pages: list[list[Tag]] = []
+    page: list[Tag] = []
+    for i, tag in enumerate(tags, start=1):
+        page.append(tag)
+
+        if i % 25 == 0:
+            pages.append(page)
+            page = []
+    if page:
+        pages.append(page)
+
+    container_pages = [
+        SelectTagContainer(
+            this_page=page,
+            user_tag=user_tag,
+            previous_view=previous_view,
+        )
+        for page in pages
+    ]
+    view = PaginationV2View(container_pages, timeout=600)
+
+    for container_page in container_pages:
+        container_page.dropdown.my_view = view
+
+    return view
+
+
+class BackButtonTagReload(Button["SettingsView"]):
+    def __init__(self, user_tag: bool, previous_view: PaginationV2View) -> None:
+        super().__init__(label="Back", style=ButtonStyle.red)
+        self.user_tag = user_tag
+        self.previous_view = previous_view
+
+    async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
+        await interaction.response.defer(ephemeral=True)
+        view = await build_tags_pagination_view(
+            interaction=interaction,
+            user_tag=self.user_tag,
+            previous_view=self.previous_view.pages[0].previous_view
+            if isinstance(self.previous_view.pages[0], SelectTagContainer)
+            else None,
+        )
+        await interaction.edit_original_response(view=view)
+
+
+class TagActionsOptionRow(ActionRow):
+    def __init__(
+        self, tag: str, user_tag: bool, previous_view: PaginationV2View, my_view: LayoutView
+    ) -> None:
         super().__init__()
+        self.tag = tag
+        self.user_tag = user_tag
+        self.previous_view = previous_view
+        self.my_view = my_view
 
-        if interaction.guild is None:
+    @discord.ui.button(label="Delete", style=ButtonStyle.red)
+    async def delete_button(
+        self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+
+        if button.label == "Delete":
+            button.label = "Press again to confirm"
+            await interaction.edit_original_response(view=self.my_view)
             return
 
-        container = Container()
-
-        dashboard_text = (
-            f"[Titanium Dashboard](https://dash.titaniumbot.me/guild/{interaction.guild.id})"
+        config = (
+            await interaction.client.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id
+            else None
         )
 
-        if interaction.guild.icon:
-            top_section = Section(accessory=Thumbnail(media=interaction.guild.icon.url))
-            top_section.add_item(
-                TextDisplay(
-                    f"## Server Settings\nFor the **{interaction.guild.name}** server. To manage more settings, please go to the {dashboard_text}."
+        if not self.user_tag and not _get_if_server_tag_allowed(interaction, config):
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} No Permissions",
+                description="You are not allowed to create or modify server tags. Please ensure you have the **Manage Guild** permission.",
+                colour=discord.Colour.red(),
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        async with get_session() as session:
+            to_delete = await session.get(Tag, self.tag)
+
+            if (
+                not to_delete
+                or (
+                    self.user_tag
+                    and (not to_delete.is_user or to_delete.owner_id != interaction.user.id)
+                )
+                or (
+                    not self.user_tag
+                    and (to_delete.is_user or to_delete.guild_id != interaction.guild_id)
+                )
+            ):
+                embed = discord.Embed(
+                    title=f"{interaction.client.error_emoji} Not Found",
+                    description="Couldn't find the tag. Maybe it was deleted?",
+                    colour=discord.Colour.red(),
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+
+            await session.delete(to_delete)
+
+        view = await build_tags_pagination_view(
+            interaction=interaction,
+            user_tag=self.user_tag,
+            previous_view=self.previous_view.pages[0].previous_view
+            if isinstance(self.previous_view.pages[0], SelectTagContainer)
+            else None,
+        )
+        await interaction.edit_original_response(view=view)
+
+        embed = discord.Embed(
+            title=f"{interaction.client.success_emoji} Deleted",
+            description=f"The `{to_delete.name}` tag was deleted.",
+            colour=Colour.green(),
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="Edit", style=ButtonStyle.blurple)
+    async def edit_button(
+        self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
+    ) -> None:
+        if not is_valid_uuid(self.tag):
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Invalid Tag",
+                description="The provided tag is invalid. Please select a tag from the list.",
+                colour=discord.Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        config = (
+            await interaction.client.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id
+            else None
+        )
+
+        if not self.user_tag and not _get_if_server_tag_allowed(interaction, config):
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} No Permissions",
+                description="You are not allowed to create or modify server tags. Please ensure you have the **Manage Guild** permission.",
+                colour=discord.Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        async with get_session() as session:
+            to_edit = await session.get(Tag, self.tag)
+
+        if (
+            not to_edit
+            or (self.user_tag and (not to_edit.is_user or to_edit.owner_id != interaction.user.id))
+            or (not self.user_tag and (to_edit.is_user or to_edit.guild_id != interaction.guild_id))
+        ):
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Not Found",
+                description="Couldn't find the tag. Maybe it was deleted?",
+                colour=discord.Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        modal = TagModal(
+            server_tag_allowed=not self.user_tag,
+            user_tag_allowed=self.user_tag,
+            existing_tag=to_edit,
+        )
+        await interaction.response.send_modal(modal)
+
+
+class TagsActionsView(LayoutView):
+    def __init__(self, tag: str, user_tag: bool, previous_view: PaginationV2View) -> None:
+        super().__init__(timeout=600)
+        self.tag = tag
+        self.user_tag = user_tag
+
+        top_section = Section(
+            TextDisplay("## Select an action\nEdit or delete the tag."),
+            accessory=BackButtonTagReload(user_tag=user_tag, previous_view=previous_view),
+        )
+
+        container = Container(
+            top_section,
+            Separator(spacing=SeparatorSpacing.large),
+            TagActionsOptionRow(
+                tag=tag, user_tag=user_tag, previous_view=previous_view, my_view=self
+            ),
+            accent_colour=Colour.light_grey(),
+        )
+
+        self.add_item(container)
+
+
+class TagSelectDropdown(Select):
+    def __init__(
+        self, tags: list[Tag], user_tag: bool, my_view: Optional[PaginationV2View] = None
+    ) -> None:
+        super().__init__()
+        self.user_tag = user_tag
+        self.tags = tags
+        self.my_view = my_view
+
+        for tag in tags:
+            self.add_option(label=tag.name, value=str(tag.id))
+
+    async def callback(self, interaction: discord.Interaction["TitaniumBot"]) -> None:
+        await interaction.response.defer(ephemeral=True)
+
+        if not self.values[0]:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Error",
+                description="Please select a tag.",
+                colour=Colour.red(),
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        assert self.my_view is not None, "my_view must be set before interaction"
+
+        await interaction.edit_original_response(
+            view=TagsActionsView(
+                tag=self.values[0], user_tag=self.user_tag, previous_view=self.my_view
+            )
+        )
+
+
+class SelectTagContainer(Container):
+    def __init__(
+        self,
+        this_page: list[Tag],
+        user_tag: bool,
+        previous_view: Optional[LayoutView],
+        my_view: Optional[PaginationV2View] = None,
+    ) -> None:
+        super().__init__(accent_colour=Colour.light_grey())
+        self.previous_view = previous_view
+
+        if previous_view:
+            top_section = Section(
+                accessory=OpenPageButton(
+                    target_view=previous_view, label="Back", style=ButtonStyle.red
                 )
             )
         else:
-            top_section = TextDisplay(
-                f"## Server Settings\nFor the **{interaction.guild.name}** server. To manage more settings, please go to the {dashboard_text}."
+            top_section = Section(
+                accessory=Button(label="Back", style=ButtonStyle.red, disabled=True)
             )
+        top_section.add_item(TextDisplay("## Select a Tag\nSelect a tag to update or delete."))
 
-        container.add_item(top_section)
-        container.add_item(Separator(spacing=SeparatorSpacing.large))
+        self.add_item(top_section)
+        self.add_item(Separator(spacing=SeparatorSpacing.large))
 
-        mod_section = Section(accessory=FeatureToggleButton(bot, settings, "moderation_enabled"))
-        mod_section.add_item(
-            TextDisplay("### Moderation\nModerate your server members and create cases.")
+        if len(this_page) == 0:
+            self.add_item(TextDisplay("**No tags were found.**"))
+        else:
+            self.dropdown = TagSelectDropdown(tags=this_page, user_tag=user_tag, my_view=my_view)
+            self.add_item(ActionRow(self.dropdown))
+
+
+class ServerTagsActionRow(ActionRow):
+    def __init__(self, previous_view: LayoutView) -> None:
+        super().__init__()
+        self.previous_view = previous_view
+
+    @discord.ui.button(label="Add", style=ButtonStyle.green)
+    async def add_button(
+        self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
+    ):
+        if not interaction.guild_id:
+            return
+
+        config = await interaction.client.fetch_guild_config(interaction.guild_id)
+        server_tag_allowed = _get_if_server_tag_allowed(interaction, config)
+        if not server_tag_allowed:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Not Allowed",
+                description="You are not allowed to manage server tags in this server.",
+                colour=discord.Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        modal = TagModal(server_tag_allowed=server_tag_allowed, user_tag_allowed=False)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Update or Remove", style=ButtonStyle.blurple)
+    async def modify_button(
+        self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
+    ):
+        if not interaction.guild_id:
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        config = await interaction.client.fetch_guild_config(interaction.guild_id)
+        server_tag_allowed = _get_if_server_tag_allowed(interaction, config)
+        if not server_tag_allowed:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Not Allowed",
+                description="You are not allowed to manage server tags in this server.",
+                colour=discord.Colour.red(),
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        view = await build_tags_pagination_view(
+            interaction=interaction, user_tag=False, previous_view=self.previous_view
         )
-        container.add_item(mod_section)
+        await interaction.edit_original_response(view=view)
 
-        automod_section = Section(accessory=FeatureToggleButton(bot, settings, "automod_enabled"))
-        automod_section.add_item(
-            TextDisplay("### Automod\nAllow Titanium to moderate your server for you.")
+
+class UserTagsActionRow(ActionRow):
+    def __init__(self, previous_view: LayoutView) -> None:
+        super().__init__()
+        self.previous_view = previous_view
+
+    @discord.ui.button(label="Add", style=ButtonStyle.green)
+    async def add_button(
+        self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
+    ):
+        user_tag_allowed = interaction.user.id not in interaction.client.opt_out
+        if not user_tag_allowed:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Opted Out",
+                description="You have opted out of optional data collection, so you are not allowed to manage user tags.",
+                colour=discord.Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
+        modal = TagModal(server_tag_allowed=False, user_tag_allowed=user_tag_allowed)
+        await interaction.response.send_modal(modal)
+
+    @discord.ui.button(label="Update or Remove", style=ButtonStyle.blurple)
+    async def modify_button(
+        self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
+    ):
+        await interaction.response.defer(ephemeral=True)
+        view = await build_tags_pagination_view(
+            interaction=interaction, user_tag=True, previous_view=self.previous_view
         )
-        container.add_item(automod_section)
+        await interaction.edit_original_response(view=view)
 
-        bouncer_section = Section(accessory=FeatureToggleButton(bot, settings, "bouncer_enabled"))
-        bouncer_section.add_item(
-            TextDisplay("### Bouncer\nAllow Titanium to monitor users as they join.")
+
+class ServerTagsView(LayoutView):
+    def __init__(
+        self,
+        previous_view: LayoutView,
+    ) -> None:
+        super().__init__(timeout=600)
+
+        top_section = Section(
+            TextDisplay("## Server Tags\nAdd, delete or update server tags."),
+            accessory=OpenPageButton(
+                target_view=previous_view, label="Back", style=ButtonStyle.red
+            ),
         )
-        container.add_item(bouncer_section)
 
-        logging_section = Section(accessory=FeatureToggleButton(bot, settings, "logging_enabled"))
-        logging_section.add_item(
-            TextDisplay("### Logging\nLog various events that happen in your server.")
+        container = Container(
+            top_section,
+            Separator(spacing=SeparatorSpacing.large),
+            ServerTagsActionRow(previous_view=self),
+            accent_colour=Colour.light_grey(),
         )
-        container.add_item(logging_section)
+        self.add_item(container)
 
+
+class UserTagsView(LayoutView):
+    def __init__(
+        self,
+        previous_view: LayoutView,
+    ) -> None:
+        super().__init__(timeout=600)
+
+        top_section = Section(
+            TextDisplay("## User Tags\nAdd, delete or update user tags."),
+            accessory=OpenPageButton(
+                target_view=previous_view, label="Back", style=ButtonStyle.red
+            ),
+        )
+
+        container = Container(
+            top_section,
+            Separator(spacing=SeparatorSpacing.large),
+            UserTagsActionRow(previous_view=self),
+            accent_colour=Colour.light_grey(),
+        )
+        self.add_item(container)
+
+
+# endregion
+
+
+# region Prefix Views
+class PrefixModal(Modal, title="Add Prefix"):
+    def __init__(self, previous_view: LayoutView) -> None:
+        super().__init__()
+        self.previous_view = previous_view
+
+        self.prefix_input = TextInput(label="Prefix", placeholder="t!", min_length=1, max_length=5)
+        self.add_item(self.prefix_input)
+
+    async def on_submit(self, interaction: Interaction["TitaniumBot"]) -> None:
+        await interaction.response.defer(ephemeral=True)
+        assert interaction.guild_id, "Guild not found"
+
+        async with get_session() as session:
+            guild_settings = await session.get(GuildSettings, interaction.guild_id)
+
+            if not guild_settings:
+                guild_settings = GuildSettings(guild_id=interaction.guild_id)
+                session.add(guild_settings)
+
+            if len(guild_settings.prefixes) >= 5:
+                embed = discord.Embed(
+                    title=f"{interaction.client.error_emoji} Error",
+                    description="You can only have up to 5 custom prefixes.",
+                    colour=Colour.red(),
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+
+            guild_settings.prefixes.append(self.prefix_input.value)
+            flag_modified(guild_settings, "prefixes")
+
+        await interaction.client.refresh_guild_config_cache(interaction.guild_id)
+        await interaction.edit_original_response(
+            view=PrefixView(interaction.client, guild_settings, self.previous_view)
+        )
+
+
+class AddPrefixButton(Button["PrefixView"]):
+    def __init__(self, previous_view: LayoutView) -> None:
+        super().__init__(label="Add Prefix", style=ButtonStyle.green)
+        self.previous_view = previous_view
+
+    async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
+        await interaction.response.send_modal(PrefixModal(self.previous_view))
+
+
+class PrefixDropdown(Select):
+    def __init__(self, prefixes: list[str], previous_view: LayoutView) -> None:
+        super().__init__()
+        self.prefixes = prefixes
+        self.previous_view = previous_view
+
+        for prefix in prefixes:
+            self.add_option(label=prefix)
+
+    async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
+        await interaction.response.defer(ephemeral=True)
+        assert interaction.guild_id, "Guild not found"
+
+        async with get_session() as session:
+            guild_settings = await session.get(GuildSettings, interaction.guild_id)
+
+            if not guild_settings:
+                guild_settings = GuildSettings(guild_id=interaction.guild_id)
+                session.add(guild_settings)
+
+            try:
+                guild_settings.prefixes.remove(self.values[0])
+                flag_modified(guild_settings, "prefixes")
+            except ValueError:
+                embed = discord.Embed(
+                    title=f"{interaction.client.error_emoji} Not Found",
+                    description="Couldn't find the prefix to remove.",
+                    colour=Colour.red(),
+                )
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                return
+
+        await interaction.client.refresh_guild_config_cache(interaction.guild_id)
+        await interaction.edit_original_response(
+            view=PrefixView(interaction.client, guild_settings, self.previous_view)
+        )
+
+        embed = discord.Embed(
+            title=f"{interaction.client.success_emoji} Deleted",
+            description=f"The `{self.values[0]}` prefix was deleted.",
+            colour=Colour.green(),
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+class PrefixView(LayoutView):
+    def __init__(
+        self, bot: TitaniumBot, settings: GuildSettings, previous_view: LayoutView
+    ) -> None:
+        super().__init__(timeout=600)
+
+        top_section = Section(
+            TextDisplay(
+                "## Prefixes\nManage the prefixes that Titanium will respond to. You can also ping Titanium or use slash commands."
+            ),
+            accessory=OpenPageButton(
+                target_view=previous_view, label="Back", style=ButtonStyle.red
+            ),
+        )
+
+        allow_prefix = Section(
+            TextDisplay(
+                "### Allow Prefix Commands\nAllow server members to interact with Titanium using prefix commands, as well as slash commands. Slash commands are always enabled."
+            ),
+            accessory=FeatureToggleButton(bot=bot, settings=settings, feature_attr="allow_prefix"),
+        )
+        not_allowed = Section(
+            TextDisplay(
+                "### Send Not Allowed Error\nSend a not allowed error to the user if they try to run prefix commands when they are disabled, in a blacklisted channel, or when they have a blacklisted role."
+            ),
+            accessory=FeatureToggleButton(
+                bot=bot, settings=settings, feature_attr="send_not_allowed"
+            ),
+        )
+        loading = Section(
+            TextDisplay(
+                "### Show Loading Reaction\nEnable or disable the loading reaction that appears when Titanium is processing a prefix command. The loading indicator will always show for slash commands."
+            ),
+            accessory=FeatureToggleButton(
+                bot=bot, settings=settings, feature_attr="loading_reaction"
+            ),
+        )
+
+        container = Container(
+            top_section,
+            Separator(spacing=SeparatorSpacing.large),
+            allow_prefix,
+            not_allowed,
+            loading,
+            Separator(spacing=SeparatorSpacing.small),
+            TextDisplay(
+                f"### Blocked Channels & Roles\nAdd channels and roles that Titanium will ignore prefix commands from in the {dashboard_url(settings.guild_id)}."
+            ),
+            Separator(spacing=SeparatorSpacing.small),
+            TextDisplay("### Prefix List\nThe list of prefixes that Titanium will respond to."),
+            TextDisplay(
+                f"{bot.user.mention if bot.user else '`@Titanium`'}, `{'`, `'.join(settings.prefixes)}`"
+                if settings.prefixes
+                else f"{bot.user.mention if bot.user else '`@Titanium`'}"
+            ),
+            accent_colour=Colour.light_grey(),
+        )
+
+        if len(settings.prefixes) < 5:
+            container.add_item(Separator(spacing=SeparatorSpacing.small))
+            container.add_item(
+                TextDisplay(
+                    "### Add Prefix\nClick the button below to add a new prefix to the list."
+                )
+            )
+            container.add_item(ActionRow(AddPrefixButton(previous_view=previous_view)))
+
+        self.dropdown = PrefixDropdown(prefixes=settings.prefixes, previous_view=previous_view)
+        if settings.prefixes:
+            container.add_item(Separator(spacing=SeparatorSpacing.small))
+            container.add_item(
+                TextDisplay(
+                    "### Remove Prefix\nSelect a prefix from the dropdown below to remove it."
+                )
+            )
+            container.add_item(ActionRow(self.dropdown))
+
+        self.add_item(container)
+
+
+# endregion
+
+
+class ModulesView(LayoutView):
+    def __init__(
+        self,
+        bot: TitaniumBot,
+        settings: GuildSettings,
+        previous_view: LayoutView,
+    ) -> None:
+        super().__init__(timeout=600)
+
+        top_section = Section(
+            TextDisplay("## Modules\nEnable or disable various feature modules."),
+            accessory=OpenPageButton(
+                target_view=previous_view, label="Back", style=ButtonStyle.red
+            ),
+        )
+        mod_section = Section(
+            TextDisplay("### Moderation\nModerate your server members and create cases."),
+            accessory=FeatureToggleButton(bot, settings, "moderation_enabled"),
+        )
+        automod_section = Section(
+            TextDisplay("### Automod\nAllow Titanium to moderate your server for you."),
+            accessory=FeatureToggleButton(bot, settings, "automod_enabled"),
+        )
+        bouncer_section = Section(
+            TextDisplay("### Bouncer\nAllow Titanium to monitor users as they join."),
+            accessory=FeatureToggleButton(bot, settings, "bouncer_enabled"),
+        )
+        logging_section = Section(
+            TextDisplay("### Logging\nLog various events that happen in your server."),
+            accessory=FeatureToggleButton(bot, settings, "logging_enabled"),
+        )
         fireboard_section = Section(
-            accessory=FeatureToggleButton(bot, settings, "fireboard_enabled")
+            TextDisplay("### Fireboard\nLet server members highlight messages they love."),
+            accessory=FeatureToggleButton(bot, settings, "fireboard_enabled"),
         )
-        fireboard_section.add_item(
-            TextDisplay("### Fireboard\nLet server members highlight messages they love.")
-        )
-        container.add_item(fireboard_section)
-
         leaderboard_section = Section(
-            accessory=FeatureToggleButton(bot, settings, "leaderboard_enabled")
+            TextDisplay("### Leaderboard\nTrack engagement and activity in your server."),
+            accessory=FeatureToggleButton(bot, settings, "leaderboard_enabled"),
         )
-        leaderboard_section.add_item(
-            TextDisplay("### Leaderboard\nTrack engagement and activity in your server.")
-        )
-        container.add_item(leaderboard_section)
-
         server_counters_section = Section(
-            accessory=FeatureToggleButton(bot, settings, "server_counters_enabled")
-        )
-        server_counters_section.add_item(
             TextDisplay(
                 "### Server Counters\nDisplay various server statistics and counters in your channel list."
-            )
+            ),
+            accessory=FeatureToggleButton(bot, settings, "server_counters_enabled"),
         )
-        container.add_item(server_counters_section)
-
         confessions_section = Section(
-            accessory=FeatureToggleButton(bot, settings, "confessions_enabled")
+            TextDisplay("### Confessions\nAllow server members to make anonymous confessions."),
+            accessory=FeatureToggleButton(bot, settings, "confessions_enabled"),
         )
-        confessions_section.add_item(
-            TextDisplay("### Confessions\nAllow server members to make anonymous confessions.")
+        tags_section = Section(
+            TextDisplay("### Tags\nSend server wide quick responses with key words."),
+            accessory=FeatureToggleButton(bot, settings, "tags_enabled"),
         )
-        container.add_item(confessions_section)
 
-        tags_section = Section(accessory=FeatureToggleButton(bot, settings, "tags_enabled"))
-        tags_section.add_item(
-            TextDisplay("### Tags\nSend server wide quick responses with key words.")
+        container = Container(
+            top_section,
+            Separator(spacing=SeparatorSpacing.large),
+            mod_section,
+            automod_section,
+            bouncer_section,
+            logging_section,
+            fireboard_section,
+            leaderboard_section,
+            server_counters_section,
+            confessions_section,
+            tags_section,
+            accent_colour=Colour.light_grey(),
         )
-        container.add_item(tags_section)
 
+        self.add_item(container)
+
+
+class SettingsView(LayoutView):
+    def __init__(
+        self,
+        interaction: Interaction["TitaniumBot"],
+        bot: TitaniumBot,
+        settings: Optional[GuildSettings],
+    ) -> None:
+        super().__init__(timeout=600)
+
+        if settings and interaction.guild:
+            if interaction.guild.icon or bot.user:
+                top_section = Section(
+                    TextDisplay(
+                        f"## Settings\nManage settings for your account and this server. To manage more server settings, please go to the {dashboard_url(interaction.guild.id)}."
+                    ),
+                    accessory=Thumbnail(
+                        media=interaction.guild.icon.url
+                        if interaction.guild.icon
+                        else bot.user.display_avatar.url  # type: ignore
+                    ),
+                )
+            else:
+                top_section = TextDisplay(
+                    f"## Settings\nManage settings for your account and this server. To manage more server settings, please go to the {dashboard_url(interaction.guild.id)}."
+                )
+        else:
+            top_section = TextDisplay(
+                "## Settings\nManage settings for your account and this server."
+            )
+
+        container = Container(
+            top_section,
+            Separator(spacing=SeparatorSpacing.large),
+            accent_colour=Colour.light_grey(),
+        )
+
+        if settings:
+            modules_section = Section(
+                TextDisplay("### Modules\nToggle various Titanium modules in this server."),
+                accessory=OpenPageButton(
+                    target_view=ModulesView(bot=bot, settings=settings, previous_view=self),
+                    label="Manage",
+                ),
+            )
+            prefixes_section = Section(
+                TextDisplay(
+                    "### Prefixes\nManage the prefixes that Titanium will respond to in this server."
+                ),
+                accessory=OpenPageButton(
+                    target_view=PrefixView(bot=bot, settings=settings, previous_view=self),
+                    label="Manage",
+                ),
+            )
+            server_tags_section = Section(
+                TextDisplay("### Server Tags\nAdd, delete or update server tags."),
+                accessory=OpenPageButton(
+                    target_view=ServerTagsView(previous_view=self), label="Manage"
+                ),
+            )
+
+            container.add_item(modules_section)
+            container.add_item(prefixes_section)
+            container.add_item(server_tags_section)
+
+        user_tags_section = Section(
+            TextDisplay("### User Tags\nAdd, delete or update user tags."),
+            accessory=OpenPageButton(target_view=UserTagsView(previous_view=self), label="Manage"),
+        )
+
+        container.add_item(user_tags_section)
         self.add_item(container)
 
 
@@ -184,26 +874,14 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
         self.bot = bot
 
     @commands.command(name="settings", description="Please use the slash command version instead.")
-    @commands.guild_only()
-    @commands.has_permissions(manage_guild=True)
-    @app_commands.default_permissions(manage_guild=True)
     async def settings_prefix(self, ctx: commands.Context["TitaniumBot"]) -> None:
         raise SlashCommandOnly
 
-    settings_group = app_commands.Group(
-        name="settings", description="Manage server settings.", guild_only=True
+    @app_commands.command(
+        name="settings",
+        description="Manage Titanium's settings for your account and the server.",
     )
-    prefix_group = app_commands.Group(
-        name="prefix",
-        description="Manage command prefixes.",
-        parent=settings_group,
-    )
-
-    @settings_group.command(
-        name="overview",
-        description="View an overview of this server's settings.",
-    )
-    async def overview(self, interaction: Interaction) -> None:
+    async def settings(self, interaction: Interaction["TitaniumBot"]) -> None:
         if not interaction.guild or not interaction.guild_id or not self.bot.user:
             return
 
@@ -212,7 +890,9 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
         guild_settings = await self.bot.fetch_guild_config(interaction.guild.id)
         view = SettingsView(interaction, self.bot, guild_settings)
 
-        await interaction.followup.send(view=view, ephemeral=True)
+        await interaction.followup.send(
+            view=view, ephemeral=True, allowed_mentions=discord.AllowedMentions.none()
+        )
 
     @app_commands.command(
         name="opt-out",
@@ -220,7 +900,7 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def remove_data(self, interaction: Interaction) -> None:
+    async def remove_data(self, interaction: Interaction["TitaniumBot"]) -> None:
         await interaction.response.defer(ephemeral=True)
 
         if interaction.user.id in self.bot.opt_out:
@@ -300,7 +980,7 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
     @app_commands.command(name="opt-in", description="Opt back into optional data collection.")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def opt_in(self, interaction: Interaction) -> None:
+    async def opt_in(self, interaction: Interaction["TitaniumBot"]) -> None:
         await interaction.response.defer(ephemeral=True)
 
         if interaction.user.id not in self.bot.opt_out:
@@ -355,130 +1035,6 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
                 colour=Colour.green(),
             ),
             view=None,
-        )
-
-    @prefix_group.command(name="add", description="Add a command prefix.")
-    @app_commands.guild_only()
-    async def add_prefix(
-        self, interaction: Interaction, prefix: app_commands.Range[str, 1, 5]
-    ) -> None:
-        if not interaction.guild or not interaction.guild_id or not self.bot.user:
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        if len(prefix) > 5:
-            return await interaction.followup.send(
-                embed=Embed(
-                    title=f"{self.bot.error_emoji} Invalid Prefix",
-                    description="The prefix must be between 1 and 5 characters long.",
-                    colour=Colour.red(),
-                ),
-                ephemeral=True,
-            )
-
-        async with get_session() as session:
-            prefixes = await session.get(GuildPrefixes, interaction.guild_id)
-
-            if not prefixes:
-                prefixes = GuildPrefixes(guild_id=interaction.guild_id)
-                session.add(prefixes)
-
-            if prefixes.prefixes is None:
-                prefixes.prefixes = ["t!"]
-
-            if prefix.lower() in prefixes.prefixes:
-                return await interaction.followup.send(
-                    embed=Embed(
-                        title=f"{self.bot.error_emoji} Already Exists",
-                        description=f"The `{prefix.lower()}` prefix has already been added.",
-                        colour=Colour.red(),
-                    ),
-                    ephemeral=True,
-                )
-
-            prefixes.prefixes.append(prefix.lower())
-            flag_modified(prefixes, "prefixes")
-
-            self.bot.guild_prefixes[interaction.guild_id] = prefixes
-
-        await interaction.followup.send(
-            embed=Embed(
-                title=f"{self.bot.success_emoji} Added",
-                description=f"Added the `{prefix.lower()}` prefix.",
-                colour=Colour.green(),
-            ),
-            ephemeral=True,
-        )
-
-    async def prefix_autocomplete(
-        self, interaction: Interaction, current: str
-    ) -> list[app_commands.Choice[str]]:
-        if interaction.guild_id is None:
-            return []
-
-        prefixes = self.bot.guild_prefixes.get(interaction.guild_id)
-        if prefixes and prefixes.prefixes is not None:
-            return [app_commands.Choice(name=prefix, value=prefix) for prefix in prefixes.prefixes]
-        else:
-            return [app_commands.Choice(name="t!", value="t!")]
-
-    @prefix_group.command(
-        name="remove",
-        description="Remove a command prefix.",
-    )
-    @app_commands.guild_only()
-    @app_commands.autocomplete(prefix=prefix_autocomplete)
-    async def remove_prefix(
-        self, interaction: Interaction, prefix: app_commands.Range[str, 1, 5]
-    ) -> None:
-        if not interaction.guild or not interaction.guild_id or not self.bot.user:
-            return
-
-        await interaction.response.defer(ephemeral=True)
-
-        if len(prefix) > 5:
-            return await interaction.followup.send(
-                embed=Embed(
-                    title=f"{self.bot.error_emoji} Invalid Prefix",
-                    description="The prefix must be between 1 and 5 characters long.",
-                    colour=Colour.red(),
-                ),
-                ephemeral=True,
-            )
-
-        async with get_session() as session:
-            prefixes = await session.get(GuildPrefixes, interaction.guild_id)
-
-            if not prefixes:
-                prefixes = GuildPrefixes(guild_id=interaction.guild_id)
-                session.add(prefixes)
-
-            if prefixes.prefixes is None:
-                prefixes.prefixes = ["t!"]
-
-            if prefix.lower() not in prefixes.prefixes:
-                return await interaction.followup.send(
-                    embed=Embed(
-                        title=f"{self.bot.error_emoji} Not Found",
-                        description=f"The `{prefix.lower()}` prefix does not exist.",
-                        colour=Colour.red(),
-                    ),
-                    ephemeral=True,
-                )
-
-            prefixes.prefixes.remove(prefix.lower())
-            flag_modified(prefixes, "prefixes")
-
-            self.bot.guild_prefixes[interaction.guild_id] = prefixes
-
-        await interaction.followup.send(
-            embed=Embed(
-                title=f"{self.bot.success_emoji} Removed",
-                description=f"Removed the `{prefix.lower()}` prefix.",
-                colour=Colour.green(),
-            ),
-            ephemeral=True,
         )
 
 

@@ -199,6 +199,33 @@ class AdminCog(commands.Cog):
                     ephemeral=True,
                 )
 
+    @admin_group.command(name="reloadall", aliases=["reload-all"], hidden=True)
+    @commands.is_owner()
+    async def reload_all(self, ctx: commands.Context["TitaniumBot"]) -> None:
+        """Reload all caches."""
+        async with defer(ctx, ephemeral=True):
+            try:
+                await self.bot.refresh_all_caches()
+                await ctx.reply(
+                    embed=discord.Embed(
+                        title=f"{self.bot.success_emoji} Reloaded",
+                        description="Successfully reloaded caches.",
+                        colour=discord.Colour.green(),
+                    ),
+                    ephemeral=True,
+                )
+            except Exception as e:
+                self.logger.error("Error reloading caches", exc_info=e)
+
+                await ctx.reply(
+                    embed=discord.Embed(
+                        title=f"{self.bot.error_emoji} Error Reloading Caches",
+                        description=f"```python\n{traceback.format_exc()}```",
+                        colour=discord.Colour.red(),
+                    ),
+                    ephemeral=True,
+                )
+
     @admin_group.command(name="reloadserver", aliases=["reload-server"], hidden=True)
     @commands.is_owner()
     async def reload_server(self, ctx: commands.Context["TitaniumBot"], guild_id: int) -> None:

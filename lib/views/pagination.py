@@ -250,8 +250,8 @@ class PageControls(ActionRow):
 
 
 class PaginationV2View(LayoutView):
-    def __init__(self, pages: Sequence[Container]):
-        super().__init__()
+    def __init__(self, pages: Sequence[Container], timeout: int = 300):
+        super().__init__(timeout=timeout)
 
         self.pages = pages
         self.current_page = 0

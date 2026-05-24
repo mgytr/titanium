@@ -80,12 +80,11 @@ class GuildSettings(Base):
         back_populates="guild_settings",
         uselist=False,
     )
-    prefixes: Mapped["GuildPrefixes"] = relationship(
-        "GuildPrefixes",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-        back_populates="guild_settings",
-        uselist=False,
+    prefixes: Mapped[list[str]] = MappedColumn(
+        ARRAY(String(length=5)),
+        default=["t!"],
+        server_default=text("ARRAY['t!']::varchar[]"),
+        nullable=False,
     )
 
     moderation_enabled: Mapped[bool] = MappedColumn(Boolean, server_default=text("true"))
@@ -187,23 +186,6 @@ class GuildLimits(Base):
     leaderboard_levels: Mapped[int] = MappedColumn(Integer, server_default=text("100"))
     server_counters: Mapped[int] = MappedColumn(Integer, server_default=text("20"))
     tags: Mapped[int] = MappedColumn(Integer, server_default=text("250"))
-
-
-class GuildPrefixes(Base):
-    __tablename__ = "guild_prefixes"
-    guild_id: Mapped[int] = MappedColumn(
-        BigInteger, ForeignKey("guild_settings.guild_id", ondelete="CASCADE"), primary_key=True
-    )
-    guild_settings: Mapped["GuildSettings"] = relationship(
-        "GuildSettings", back_populates="prefixes", uselist=False
-    )
-
-    prefixes: Mapped[list[str]] = MappedColumn(
-        ARRAY(String(length=5)),
-        default=["t!"],
-        server_default=text("ARRAY['t!']::varchar[]"),
-        nullable=False,
-    )
 
 
 class GuildModerationSettings(Base):

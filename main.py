@@ -52,7 +52,6 @@ from lib.sql.sql import (  # noqa: E402
     GuildLimits,
     GuildLoggingSettings,
     GuildModerationSettings,
-    GuildPrefixes,
     GuildServerCounterSettings,
     GuildSettings,
     GuildTagSettings,
@@ -98,7 +97,6 @@ class TitaniumBot(commands.Bot):
     api_latency: float = 0.0
 
     guild_configs: dict[int, GuildSettings] = {}
-    guild_prefixes: dict[int, GuildPrefixes] = {}
     available_webhooks: dict[int, list[AvailableWebhook]] = {}
     automod_messages: dict[int, dict[int, list[AutomodMessage]]] = {}
     fireboard_messages: dict[int, list[FireboardMessage]] = {}
@@ -153,15 +151,6 @@ class TitaniumBot(commands.Bot):
             for config in configs:
                 self.guild_configs[config.guild_id] = config
 
-            # Server prefixes
-            stmt = select(GuildPrefixes).options(selectinload("*"))
-            result = await session.execute(stmt)
-            prefix_configs = result.scalars().all()
-            self.guild_prefixes.clear()
-
-            for config in prefix_configs:
-                self.guild_prefixes[config.guild_id] = config
-
             # Available webhooks
             stmt = select(AvailableWebhook).options(selectinload("*"))
             result = await session.execute(stmt)
@@ -198,18 +187,6 @@ class TitaniumBot(commands.Bot):
             if config:
                 self.guild_configs[config.guild_id] = config
 
-            # Server prefixes
-            stmt = (
-                select(GuildPrefixes)
-                .where(GuildPrefixes.guild_id == guild_id)
-                .options(selectinload("*"))
-            )
-            result = await session.execute(stmt)
-            prefix_config = result.scalar()
-
-            if prefix_config:
-                self.guild_prefixes[prefix_config.guild_id] = prefix_config
-
             # Available webhooks
             stmt = (
                 select(AvailableWebhook)
@@ -240,7 +217,6 @@ class TitaniumBot(commands.Bot):
 
     def remove_cached_config(self, guild_id: int) -> None:
         self.guild_configs.pop(guild_id, None)
-        self.guild_prefixes.pop(guild_id, None)
         self.available_webhooks.pop(guild_id, None)
         self.automod_messages.pop(guild_id, None)
         self.fireboard_messages.pop(guild_id, None)
@@ -289,10 +265,6 @@ class TitaniumBot(commands.Bot):
             stmt = stmt.on_conflict_do_nothing(index_elements=["guild_id"])
             await session.execute(stmt)
 
-            stmt = insert(GuildPrefixes).values(guild_id=guild_id, prefixes=["t!"])
-            stmt = stmt.on_conflict_do_nothing(index_elements=["guild_id"])
-            await session.execute(stmt)
-
             stmt = insert(GuildLimits).values(id=guild_id)
             stmt = stmt.on_conflict_do_nothing(index_elements=["id"])
             await session.execute(stmt)
@@ -321,9 +293,6 @@ class TitaniumBot(commands.Bot):
         # delete db entries
         async with get_session() as session:
             stmt = delete(GuildSettings).where(GuildSettings.guild_id == guild_id)
-            await session.execute(stmt)
-
-            stmt = delete(GuildPrefixes).where(GuildPrefixes.guild_id == guild_id)
             await session.execute(stmt)
 
             stmt = delete(AvailableWebhook).where(AvailableWebhook.guild_id == guild_id)
@@ -436,17 +405,15 @@ class TitaniumBot(commands.Bot):
 
 
 async def get_prefix(bot: TitaniumBot, message: discord.Message):
-    base = []
-
     if message.guild:
-        prefixes: GuildPrefixes = bot.guild_prefixes.get(message.guild.id)
+        config = await bot.fetch_guild_config(message.guild.id)
 
-        if prefixes and prefixes.prefixes is not None:
-            base.extend(prefixes.prefixes)
+        if config:
+            base = config.prefixes
         else:
-            base.append("t!")
+            base = ["t!"]
     else:
-        base.append("t!")
+        base = ["t!"]
 
     return commands.when_mentioned_or(*base)(bot, message)
 

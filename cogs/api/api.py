@@ -832,6 +832,7 @@ class APICog(commands.Cog):
         if not config.tags_enabled:
             return web.json_response({"error": "tags are disabled in this server"}, status=403)
 
+        # TODO: remove the +1
         if config.limits.enforcing and len(config.tag_settings.tags) + 1 > config.limits.tags:
             return web.json_response(
                 {
@@ -1169,9 +1170,7 @@ class APICog(commands.Cog):
             return web.json_response({"error": "guild not found"}, status=404)
 
         config = await self.bot.fetch_guild_config(guild.id)
-        prefixes = self.bot.guild_prefixes.get(guild.id)
-
-        if not config or not prefixes:
+        if not config:
             return web.json_response(
                 {"error": "Failed to retrieve server configuration"},
                 status=500,
@@ -1198,7 +1197,7 @@ class APICog(commands.Cog):
                     "blocked_roles": [str(role) for role in config.blocked_roles],
                     "delete_after_3_days": config.delete_after_3_days,
                 },
-                "prefixes": prefixes.prefixes,
+                "prefixes": config.prefixes,
                 "permissions": {
                     "dashboard_managers": [str(role_id) for role_id in config.dashboard_managers],
                     "case_managers": [str(role_id) for role_id in config.case_managers],
@@ -1218,9 +1217,7 @@ class APICog(commands.Cog):
             return web.json_response({"error": "guild not found"}, status=404)
 
         config = await self.bot.fetch_guild_config(guild.id)
-        prefixes = self.bot.guild_prefixes.get(guild.id)
-
-        if not config or not prefixes:
+        if not config:
             return web.json_response(
                 {"error": "Failed to retrieve server configuration"},
                 status=500,
@@ -1254,6 +1251,7 @@ class APICog(commands.Cog):
             db_config.leaderboard_enabled = validated_settings.modules.leaderboard
             db_config.tags_enabled = validated_settings.modules.tags
 
+            db_config.prefixes = validated_settings.prefixes
             db_config.allow_prefix = validated_settings.settings.allow_prefix
             db_config.send_not_allowed = validated_settings.settings.send_not_allowed
             db_config.loading_reaction = validated_settings.settings.loading_reaction
@@ -1263,11 +1261,10 @@ class APICog(commands.Cog):
             db_config.blocked_roles = [
                 int(role) for role in validated_settings.settings.blocked_roles
             ]
+
             db_config.delete_after_3_days = validated_settings.settings.delete_after_3_days
 
-            prefixes.prefixes = validated_settings.prefixes
             session.add(db_config)
-            session.add(prefixes)
 
         await self.bot.refresh_guild_config_cache(guild.id)
         return web.Response(status=204)

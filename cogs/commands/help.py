@@ -53,10 +53,8 @@ class HelpCommandCog(commands.Cog):
             ):
                 config = await self.bot.fetch_guild_config(ctx.guild.id)
                 if config and config.allow_prefix:
-                    if config.prefixes and config.prefixes.prefixes:
-                        value = (
-                            f"`{'`, `'.join(config.prefixes.prefixes)}`, {self.bot.user.mention}"
-                        )
+                    if config.prefixes:
+                        value = f"`{'`, `'.join(config.prefixes)}`, {self.bot.user.mention}"
                     else:
                         value = self.bot.user.mention
 
