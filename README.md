@@ -26,6 +26,9 @@ Titanium v2 includes many new features designed to improve your Discord experien
 > [!IMPORTANT]
 > You will need to run a PostgreSQL server to run the bot.
 
+> [!CAUTION]
+> Titanium v2 is only tested to run on macOS and Linux. Windows support is untested, and may have unexpected issues.
+
 ## Database Setup
 
 1. Create a PostgreSQL 18 database - this can be done with Docker or similar tools
