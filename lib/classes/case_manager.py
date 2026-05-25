@@ -225,7 +225,7 @@ class GuildModCaseManager:
                 reason=case.description,
             )
         elif action == CaseType.WARN:
-            embed = warned_dm(self.bot, user, case)
+            embed = warned_dm(bot=self.bot, ctx=user, reason=case.description)
         else:
             embed = None
 
