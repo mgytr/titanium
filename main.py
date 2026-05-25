@@ -220,6 +220,7 @@ class TitaniumBot(commands.Bot):
         self.available_webhooks.pop(guild_id, None)
         self.automod_messages.pop(guild_id, None)
         self.fireboard_messages.pop(guild_id, None)
+        self.punishing.pop(guild_id, None)
 
     async def init_guild(self, guild_id: int, refresh: bool = True) -> GuildSettings | None:
         db_logger.debug(f"Initializing guild {guild_id}...")

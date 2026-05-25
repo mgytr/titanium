@@ -195,11 +195,13 @@ class ViewCaseButton(discord.ui.Button):
 
         if (
             not isinstance(interaction.user, discord.Member)
-            or not interaction.user.guild_permissions.manage_guild
+            or not interaction.user.guild_permissions.kick_members
+            or not interaction.user.guild_permissions.ban_members
+            or not interaction.user.guild_permissions.moderate_members
         ):
             embed = discord.Embed(
                 title=f"{interaction.client.error_emoji} Missing Permissions",
-                description="You are missing Manage Server permissions to use this feature.",
+                description="You do not have permission to view cases for other users. Please ensure you have the Kick Members, Ban Members or Timeout Members permission.",
                 colour=discord.Colour.red(),
             )
 
@@ -246,11 +248,13 @@ class ViewCommentsButton(discord.ui.Button):
 
         if (
             not isinstance(interaction.user, discord.Member)
-            or not interaction.user.guild_permissions.manage_guild
+            or not interaction.user.guild_permissions.kick_members
+            or not interaction.user.guild_permissions.ban_members
+            or not interaction.user.guild_permissions.moderate_members
         ):
             embed = discord.Embed(
                 title=f"{interaction.client.error_emoji} Missing Permissions",
-                description="You are missing Manage Server permissions to use this feature.",
+                description="You do not have permission to view cases comments. Please ensure you have the Kick Members, Ban Members or Timeout Members permission.",
                 colour=discord.Colour.red(),
             )
 

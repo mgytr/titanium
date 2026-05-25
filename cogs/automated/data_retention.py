@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from main import TitaniumBot
 
 
-# INFO - if we ever switch from 1 shard / autosharding, this will need a rewrite
+# TODO - if we ever switch from 1 shard / autosharding, this will need a rewrite
 class DataRetention(commands.Cog):
     def __init__(self, bot: TitaniumBot) -> None:
         self.bot = bot
@@ -45,6 +45,7 @@ class DataRetention(commands.Cog):
                         f"Left server while bot is offline - {server.guild_id}. Setting leave date."
                     )
                     server.leave_date = datetime.now(timezone.utc)
+                    self.bot.remove_cached_config(guild_id=server.guild_id)
                 else:
                     self.logger.info(
                         f"Left server while bot is offline - {server.guild_id}. Deleting config."
@@ -62,6 +63,7 @@ class DataRetention(commands.Cog):
             if settings and settings.leave_date:
                 self.logger.info(f"Rejoined server - {guild.id}. Clearing leave date.")
                 settings.leave_date = None
+                await self.bot.refresh_guild_config_cache(guild.id)
 
     # Listen for Titanium leaving servers
     @commands.Cog.listener()
@@ -74,14 +76,14 @@ class DataRetention(commands.Cog):
         await self.bot.wait_until_ready()
         config = await self.bot.fetch_guild_config(guild.id, create_config=False)
 
-        if not config:
-            # no config to remove
-            return
-
         async with get_session() as session:
             # delete all stored webhooks - they are deleted from discord when titanium leaves anyway
             stmt = delete(AvailableWebhook).where(AvailableWebhook.guild_id == guild.id)
             await session.execute(stmt)
+
+            if not config:
+                # no config to remove
+                return
 
             # delete config or set leaver date
             if config.delete_after_3_days:
@@ -114,6 +116,7 @@ class DataRetention(commands.Cog):
                     # skip if we are still in the server
                     self.logger.info(f"Rejoined server {server.guild_id}. Clearing leave date.")
                     server.leave_date = None
+                    await self.bot.refresh_guild_config_cache(server.guild_id)
                     continue
 
                 self.logger.info(f"3 days passed for server {server.guild_id}. Deleting config.")

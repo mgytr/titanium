@@ -40,7 +40,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
                 embed=Embed(
                     colour=Colour.red(),
                     title=f"{self.bot.error_emoji} Moderation Disabled",
-                    description="The moderation module is disabled. Ask a server admin to turn it on using the `/settings overview` command or the Titanium Dashboard.",
+                    description="The moderation module is disabled. Ask a server admin to turn it on using the `/settings` command or the Titanium Dashboard.",
                 ),
             )
             await _stop_loading(ctx)
@@ -71,9 +71,8 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
         name="cases", aliases=["warns", "strikes"], description="View your moderation cases."
     )
     @commands.guild_only()
-    @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.describe(
-        user="The user to search for. You can only search for other users if you have the 'Manage Server' permission."
+        user="The user to search for. You can only search for other users if you have a moderation permission."
     )
     async def cases(
         self, ctx: commands.Context["TitaniumBot"], user: User | None = None
@@ -86,11 +85,15 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
                 case_manager = GuildModCaseManager(self.bot, ctx.guild, session)
 
                 if user:
-                    if not ctx.channel.permissions_for(ctx.author).manage_guild:
+                    if (
+                        not ctx.author.guild_permissions.kick_members
+                        and not ctx.author.guild_permissions.ban_members
+                        and not ctx.author.guild_permissions.moderate_members
+                    ):
                         return await ctx.reply(
                             embed=Embed(
                                 title=f"{self.bot.error_emoji} Permission Denied",
-                                description="You do not have permission to view cases for other users. Please ensure you have the `Manage Server` permission.",
+                                description="You do not have permission to view cases for other users. Please ensure you have the Kick Members, Ban Members or Timeout Members permission.",
                                 colour=Colour.red(),
                             )
                         )
@@ -149,9 +152,12 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
         name="case", fallback="view", description="View and manage moderation cases."
     )
     @commands.guild_only()
-    @app_commands.allowed_installs(guilds=True, users=False)
-    @commands.has_permissions(manage_guild=True)
-    @app_commands.default_permissions(manage_guild=True)
+    @commands.check_any(
+        commands.has_permissions(kick_members=True),
+        commands.has_permissions(ban_members=True),
+        commands.has_permissions(moderate_members=True),
+    )
+    @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
     @app_commands.describe(case_id="The case ID to search for.")
     async def case_group(
         self, ctx: commands.Context["TitaniumBot"], case_id: str
@@ -185,7 +191,11 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
             if (
                 case.comments
                 and isinstance(ctx.author, Member)
-                and ctx.author.guild_permissions.manage_guild
+                and (
+                    ctx.author.guild_permissions.kick_members
+                    or ctx.author.guild_permissions.ban_members
+                    or ctx.author.guild_permissions.moderate_members
+                )
             ):
                 view.add_item(ViewCommentsButton(case=case))
 
@@ -203,8 +213,12 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
 
     @case_group.command(name="comments", description="View comments on a case.")
     @commands.guild_only()
-    @commands.has_permissions(manage_guild=True)
-    @app_commands.default_permissions(manage_guild=True)
+    @commands.check_any(
+        commands.has_permissions(kick_members=True),
+        commands.has_permissions(ban_members=True),
+        commands.has_permissions(moderate_members=True),
+    )
+    @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
     @app_commands.describe(case_id="The case ID to search for.")
     async def case_comments(
         self, ctx: commands.Context["TitaniumBot"], case_id: str
@@ -243,8 +257,12 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
 
     @case_group.command(name="addcomment", description="Add a comment to a case.")
     @commands.guild_only()
-    @commands.has_permissions(manage_guild=True)
-    @app_commands.default_permissions(manage_guild=True)
+    @commands.check_any(
+        commands.has_permissions(kick_members=True),
+        commands.has_permissions(ban_members=True),
+        commands.has_permissions(moderate_members=True),
+    )
+    @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
     @app_commands.describe(
         case_id="The case ID to add a comment to.", comment="The comment to add."
     )
@@ -285,7 +303,11 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     @case_group.command(name="delete", description="Delete a case by its ID.")
     @global_alias("deletecase")
     @commands.guild_only()
-    @commands.has_permissions(manage_guild=True)
+    @commands.check_any(
+        commands.has_permissions(kick_members=True),
+        commands.has_permissions(ban_members=True),
+        commands.has_permissions(moderate_members=True),
+    )
     @app_commands.describe(case_id="The case ID to delete.")
     async def view_case(self, ctx: commands.Context["TitaniumBot"], case_id: str) -> None | Message:
         if not ctx.guild or not self.bot.user:
@@ -300,13 +322,13 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
                     return await ctx.reply(embed=case_embeds.case_not_found(self.bot, str(case_id)))
 
                 # Get creator
-                creator = self.bot.get_user(case.creator_user_id)  # pyright: ignore[reportArgumentType]
+                creator = self.bot.get_user(case.creator_user_id)
 
                 if not creator:
                     creator = case.creator_user_id
 
                 # Get target
-                target = self.bot.get_user(case.user_id)  # pyright: ignore[reportArgumentType]
+                target = self.bot.get_user(case.user_id)
 
                 if not target:
                     target = case.user_id
@@ -346,7 +368,11 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     @global_alias("cleancases")
     @global_alias("deletecases")
     @commands.guild_only()
-    @commands.has_permissions(manage_guild=True)
+    @commands.check_any(
+        commands.has_permissions(kick_members=True),
+        commands.has_permissions(ban_members=True),
+        commands.has_permissions(moderate_members=True),
+    )
     @app_commands.describe(user="The user to clean.")
     async def clean_cases(self, ctx: commands.Context["TitaniumBot"], user: User) -> None | Message:
         await ctx.defer()

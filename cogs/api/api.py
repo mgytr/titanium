@@ -1139,7 +1139,11 @@ class APICog(commands.Cog):
                 )
 
             dashboard_manager = member.guild_permissions.administrator
-            case_manager = member.guild_permissions.manage_guild
+            case_manager = (
+                member.guild_permissions.kick_members
+                or member.guild_permissions.ban_members
+                or member.guild_permissions.moderate_members
+            )
 
             for role in member.roles:
                 if role.id == guild.id:

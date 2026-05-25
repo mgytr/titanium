@@ -21,7 +21,6 @@ if TYPE_CHECKING:
 
 
 @commands.guild_only()
-@app_commands.allowed_installs(guilds=True, users=False)
 @app_commands.default_permissions(moderate_members=True)
 class ModerationBasicCog(
     commands.GroupCog, group_name="mod", description="Moderate server members."
@@ -43,7 +42,7 @@ class ModerationBasicCog(
                 embed=discord.Embed(
                     colour=discord.Colour.red(),
                     title=f"{self.bot.error_emoji} Moderation Disabled",
-                    description="The moderation module is disabled in this server. Ask a server admin to turn it on using the `/settings overview` command or the Titanium Dashboard.",
+                    description="The moderation module is disabled in this server. Ask a server admin to turn it on using the `/settings` command or the Titanium Dashboard.",
                 ),
                 ephemeral=True,
             )
@@ -108,7 +107,11 @@ class ModerationBasicCog(
         return True
 
     @commands.hybrid_command(name="warn", description="Warn a member for a specified reason.")
-    @commands.has_permissions(manage_guild=True)
+    @commands.check_any(
+        commands.has_permissions(kick_members=True),
+        commands.has_permissions(ban_members=True),
+        commands.has_permissions(moderate_members=True),
+    )
     @app_commands.describe(
         member="The member to warn.", reason="Optional: the reason for the warning."
     )

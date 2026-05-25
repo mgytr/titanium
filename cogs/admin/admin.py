@@ -30,9 +30,8 @@ class AdminCog(commands.Cog):
     @admin_group.command(name="exc", hidden=True)
     @commands.is_owner()
     async def raise_exception(self, ctx: commands.Context["TitaniumBot"]) -> None:
-        """Command to raise an exception for testing error logging."""
         async with defer(ctx):
-            raise ValueError("This is a test exception for error logging.")
+            raise Exception("Test")
 
     @admin_group.command(name="clear", hidden=True)
     @commands.is_owner()
