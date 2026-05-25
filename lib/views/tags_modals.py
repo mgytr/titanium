@@ -142,7 +142,11 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
             self.is_server_tag = self.tag_type.component.value == "server"
 
         if self.is_server_tag and interaction.guild:
-            config = await interaction.client.fetch_guild_config(interaction.guild.id)
+            config = (
+                await interaction.client.fetch_guild_config(interaction.guild.id)
+                if interaction.is_guild_integration()
+                else None
+            )
             if not config:
                 raise Exception("Failed to get guild config")
 

@@ -177,7 +177,6 @@ class TagCommandsCog(commands.Cog):
         if not self.__server_tag_available(ctx, config) or not ctx.guild:
             return False
 
-        config = await self.bot.fetch_guild_config(ctx.guild.id)
         if not config or (
             not config.tags_enabled
             or not config.tag_settings
@@ -200,7 +199,7 @@ class TagCommandsCog(commands.Cog):
     ) -> list[app_commands.Choice[str]]:
         config = (
             await self.bot.fetch_guild_config(interaction.guild_id)
-            if interaction.guild_id
+            if interaction.guild_id and interaction.is_guild_integration()
             else None
         )
         return await tag_autocomplete_base(
@@ -230,12 +229,15 @@ class TagCommandsCog(commands.Cog):
             )
             return await ctx.reply(embed=embed)
 
-        config = await self.bot.fetch_guild_config(ctx.guild.id) if ctx.guild else None
+        config = (
+            await self.bot.fetch_guild_config(ctx.guild.id)
+            if ctx.guild and (ctx.interaction and ctx.interaction.is_guild_integration())
+            else None
+        )
         user_tags_allowed = True
         server_tags_allowed = self.__server_tag_available(ctx, config)
 
         if server_tags_allowed and ctx.guild:
-            config = await self.bot.fetch_guild_config(ctx.guild.id)
             if config and config.tag_settings and not config.tag_settings.allow_user_tags:
                 user_tags_allowed = False
 
@@ -295,7 +297,7 @@ class TagCommandsCog(commands.Cog):
         ):
             embed = discord.Embed(
                 title=f"{ctx.bot.error_emoji} Not Found",
-                description=f"Couldn't find a tag called `{tag}`.",
+                description=f"Couldn't find a tag called `{tag}`. Create and manage tags with the `/settings` command.",
                 colour=discord.Colour.red(),
             )
 
@@ -348,7 +350,11 @@ class TagCommandsCog(commands.Cog):
     ):
         await ctx.defer()
 
-        config = await self.bot.fetch_guild_config(ctx.guild.id) if ctx.guild else None
+        config = (
+            await self.bot.fetch_guild_config(ctx.guild.id)
+            if ctx.guild and (ctx.interaction and ctx.interaction.is_guild_integration())
+            else None
+        )
         if mode == "server" and not self.__server_tag_available(ctx, config):
             embed = discord.Embed(
                 title=f"{ctx.bot.error_emoji} Not Available",
@@ -397,7 +403,7 @@ class TagCommandsCog(commands.Cog):
             tag_pages.append(
                 discord.Embed(
                     title=f"{mode.capitalize()} Tags",
-                    description=f"There are `{len(tags)}` tags. To manage tags, use the `/tag-settings` slash commands.\n\n"
+                    description=f"There are `{len(tags)}` tags. To manage tags, use the `/settings` command.\n\n"
                     + "\n".join(current_page_tags),
                     colour=discord.Colour.light_grey(),
                 ).set_author(
@@ -413,7 +419,7 @@ class TagCommandsCog(commands.Cog):
         if not tag_pages:
             embed = discord.Embed(
                 title=f"{ctx.bot.error_emoji} No Tags Found",
-                description="Looks like you don't have any tags yet! To manage tags, use the `/tag-settings` slash commands.",
+                description="Looks like you don't have any tags yet! To manage tags, use the `/settings` command.",
                 colour=discord.Colour.red(),
             )
             return await ctx.reply(embed=embed)

@@ -48,7 +48,7 @@ class HelpCommandCog(commands.Cog):
             if (
                 ctx.guild
                 and isinstance(ctx.author, discord.Member)
-                and ctx.guild.id in [role.id for role in ctx.author.roles]
+                and (ctx.interaction and ctx.interaction.is_guild_integration())
                 and self.bot.user
             ):
                 config = await self.bot.fetch_guild_config(ctx.guild.id)

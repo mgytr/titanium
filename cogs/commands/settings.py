@@ -119,7 +119,7 @@ def _get_if_server_tag_allowed(
     return bool(
         interaction.guild
         and isinstance(interaction.user, discord.Member)
-        and interaction.guild.id in [role.id for role in interaction.user.roles]
+        and interaction.is_guild_integration()
         and interaction.user.guild_permissions.manage_guild
         and config
         and config.tags_enabled
@@ -222,7 +222,7 @@ class TagActionsOptionRow(ActionRow):
 
         config = (
             await interaction.client.fetch_guild_config(interaction.guild_id)
-            if interaction.guild_id
+            if interaction.guild_id and interaction.is_guild_integration()
             else None
         )
 
@@ -290,7 +290,7 @@ class TagActionsOptionRow(ActionRow):
 
         config = (
             await interaction.client.fetch_guild_config(interaction.guild_id)
-            if interaction.guild_id
+            if interaction.guild_id and interaction.is_guild_integration()
             else None
         )
 
@@ -425,11 +425,13 @@ class ServerTagsActionRow(ActionRow):
     async def add_button(
         self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
     ):
-        if not interaction.guild_id:
-            return
-
-        config = await interaction.client.fetch_guild_config(interaction.guild_id)
+        config = (
+            await interaction.client.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id and interaction.is_guild_integration()
+            else None
+        )
         server_tag_allowed = _get_if_server_tag_allowed(interaction, config)
+
         if not server_tag_allowed:
             embed = discord.Embed(
                 title=f"{interaction.client.error_emoji} Not Allowed",
@@ -451,8 +453,13 @@ class ServerTagsActionRow(ActionRow):
 
         await interaction.response.defer(ephemeral=True)
 
-        config = await interaction.client.fetch_guild_config(interaction.guild_id)
+        config = (
+            await interaction.client.fetch_guild_config(interaction.guild_id)
+            if interaction.guild_id and interaction.is_guild_integration()
+            else None
+        )
         server_tag_allowed = _get_if_server_tag_allowed(interaction, config)
+
         if not server_tag_allowed:
             embed = discord.Embed(
                 title=f"{interaction.client.error_emoji} Not Allowed",
@@ -882,14 +889,21 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
         description="Manage Titanium's settings for your account and the server.",
     )
     async def settings(self, interaction: Interaction["TitaniumBot"]) -> None:
-        if not interaction.guild or not interaction.guild_id or not self.bot.user:
+        if not self.bot.user:
             return
 
         await interaction.response.defer(ephemeral=True)
 
-        guild_settings = await self.bot.fetch_guild_config(interaction.guild.id)
-        view = SettingsView(interaction, self.bot, guild_settings)
+        guild_settings = None
+        if (
+            interaction.is_guild_integration()
+            and interaction.guild
+            and isinstance(interaction.user, discord.Member)
+            and interaction.user.guild_permissions.administrator
+        ):
+            guild_settings = await self.bot.fetch_guild_config(interaction.guild.id)
 
+        view = SettingsView(interaction, self.bot, guild_settings)
         await interaction.followup.send(
             view=view, ephemeral=True, allowed_mentions=discord.AllowedMentions.none()
         )

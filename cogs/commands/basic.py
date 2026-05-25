@@ -155,7 +155,11 @@ class BasicCommandsCog(
     )
     @commands.guild_only()
     async def prefixes(self, ctx: commands.Context["TitaniumBot"]) -> None:
-        if not ctx.guild or not self.bot.user:
+        if (
+            not ctx.guild
+            or not self.bot.user
+            or (ctx.interaction and not ctx.interaction.is_guild_integration())
+        ):
             return
 
         await ctx.defer()

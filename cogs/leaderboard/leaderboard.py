@@ -249,7 +249,6 @@ class LeaderboardCog(commands.Cog):
     # Leaderboard command
     @commands.hybrid_command(name="leaderboard", aliases=["lb", "top"])
     @commands.guild_only()
-    @app_commands.allowed_installs(guilds=True, users=False)
     async def leaderboard_command(self, ctx: commands.Context["TitaniumBot"]):
         """Gets the leaderboard for the server."""
         if not ctx.guild:
@@ -331,7 +330,6 @@ class LeaderboardCog(commands.Cog):
     # Level command
     @commands.hybrid_command(name="level", aliases=["lvl"])
     @commands.guild_only()
-    @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.describe(
         member="Optional: the user to get the XP info from. Defaults to yourself."
     )
@@ -427,7 +425,6 @@ class LeaderboardCog(commands.Cog):
 
     # TODO: test permissions
     @commands.hybrid_group(name="xp", description="Set, add and remove XP from users.")
-    @app_commands.allowed_installs(guilds=True, users=False)
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def xp_group(self, ctx: commands.Context["TitaniumBot"]) -> None:
