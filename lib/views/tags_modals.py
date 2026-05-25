@@ -101,7 +101,7 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
             not self.server_tag_allowed
             or (
                 isinstance(interaction.user, discord.Member)
-                and not interaction.user.guild_permissions.manage_guild
+                and not interaction.permissions.manage_guild
             )
         ):
             embed = discord.Embed(

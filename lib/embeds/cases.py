@@ -32,7 +32,7 @@ def cases(
 
     for case in cases:
         embed.add_field(
-            name=f"`{case.id}` • {bot.error_emoji if bool(case.resolved) else bot.success_emoji} {'Closed' if case.resolved else 'Open'}",
+            name=f"`{case.id}` • {bot.success_emoji if bool(case.resolved) else bot.warn_emoji} {'Resolved' if case.resolved else 'Open'}",
             value=f"-# Created <t:{int(case.time_created.timestamp())}:f>\n{case.description}",
             inline=False,
         )
@@ -47,7 +47,7 @@ def case_embed(
     target: User | int | Column[int],
 ) -> Embed:
     description_lines = [
-        f"**Status:** {bot.error_emoji if bool(case.resolved) else bot.success_emoji} {'Closed' if bool(case.resolved) else 'Open'}",
+        f"**Status:** {bot.success_emoji if bool(case.resolved) else bot.warn_emoji} {'Resolved' if bool(case.resolved) else 'Open'}",
         f"**Type:** {case.type.name.capitalize()}",
         f"**Target:** {f'<@{target}> (`{target}`)' if isinstance(target, int) or isinstance(target, Column) else f'{target.mention} (`{target.id}`)'}\n",
         f"**Time Created:** <t:{int(case.time_created.timestamp())}:f>",

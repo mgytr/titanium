@@ -176,26 +176,19 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
 
             # Get creator
             creator = self.bot.get_user(case.creator_user_id)
-
             if not creator:
                 creator = case.creator_user_id
 
             # Get target
             target = self.bot.get_user(case.user_id)
-
             if not target:
                 target = case.user_id
 
             view = View()
-
-            if (
-                case.comments
-                and isinstance(ctx.author, Member)
-                and (
-                    ctx.author.guild_permissions.kick_members
-                    or ctx.author.guild_permissions.ban_members
-                    or ctx.author.guild_permissions.moderate_members
-                )
+            if isinstance(ctx.author, Member) and (
+                ctx.author.guild_permissions.kick_members
+                or ctx.author.guild_permissions.ban_members
+                or ctx.author.guild_permissions.moderate_members
             ):
                 view.add_item(ViewCommentsButton(case=case))
 

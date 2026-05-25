@@ -1,4 +1,3 @@
-# TODO: always enforce permissions on each action
 from typing import TYPE_CHECKING, Optional
 
 import discord
@@ -58,8 +57,9 @@ class OpenPageButton(Button["SettingsView"]):
         target_view: LayoutView,
         label: str = "",
         style: discord.ButtonStyle = ButtonStyle.secondary,
+        disabled: bool = False,
     ) -> None:
-        super().__init__(label=label, style=style)
+        super().__init__(label=label, style=style, disabled=disabled)
         self.target_view = target_view
 
     async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
@@ -90,11 +90,19 @@ class FeatureToggleButton(Button["SettingsView"]):
 
     async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
         if not interaction.guild_id:
+            raise RuntimeError("No guild ID")
+
+        if not interaction.permissions.administrator:
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} Not Allowed",
+                description="You must have the Administrator permission to complete this action.",
+                colour=Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         current_value = getattr(self.settings, self.feature_attr)
         new_value = not current_value
-        setattr(self.settings, self.feature_attr, new_value)
 
         async with get_session() as session:
             guild_settings = await session.get(GuildSettings, interaction.guild_id)
@@ -103,10 +111,32 @@ class FeatureToggleButton(Button["SettingsView"]):
                 session.add(guild_settings)
 
             setattr(guild_settings, self.feature_attr, new_value)
-
         await self.bot.refresh_guild_config_cache(interaction.guild_id)
+
+        self.settings = guild_settings
         self.update_button()
+
         await interaction.response.edit_message(view=self.view)
+
+
+class BackButtonHomeReload(Button["SettingsView"]):
+    def __init__(self) -> None:
+        super().__init__(label="Back", style=ButtonStyle.red)
+
+    async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
+        await interaction.response.defer(ephemeral=True)
+
+        guild_settings = None
+        if (
+            interaction.is_guild_integration()
+            and interaction.guild
+            and isinstance(interaction.user, discord.Member)
+        ):
+            guild_settings = await interaction.client.fetch_guild_config(interaction.guild.id)
+
+        await interaction.edit_original_response(
+            view=SettingsView(interaction, interaction.client, guild_settings)
+        )
 
 
 # endregion
@@ -120,7 +150,7 @@ def _get_if_server_tag_allowed(
         interaction.guild
         and isinstance(interaction.user, discord.Member)
         and interaction.is_guild_integration()
-        and interaction.user.guild_permissions.manage_guild
+        and interaction.permissions.manage_guild
         and config
         and config.tags_enabled
     )
@@ -374,7 +404,8 @@ class TagSelectDropdown(Select):
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
-        assert self.my_view is not None, "my_view must be set before interaction"
+        if self.my_view is None:
+            raise RuntimeError("my_view must be set before interaction")
 
         await interaction.edit_original_response(
             view=TagsActionsView(
@@ -448,9 +479,6 @@ class ServerTagsActionRow(ActionRow):
     async def modify_button(
         self, interaction: discord.Interaction["TitaniumBot"], button: discord.ui.Button
     ):
-        if not interaction.guild_id:
-            return
-
         await interaction.response.defer(ephemeral=True)
 
         config = (
@@ -511,15 +539,12 @@ class UserTagsActionRow(ActionRow):
 class ServerTagsView(LayoutView):
     def __init__(
         self,
-        previous_view: LayoutView,
     ) -> None:
         super().__init__(timeout=600)
 
         top_section = Section(
             TextDisplay("## Server Tags\nAdd, delete or update server tags."),
-            accessory=OpenPageButton(
-                target_view=previous_view, label="Back", style=ButtonStyle.red
-            ),
+            accessory=BackButtonHomeReload(),
         )
 
         container = Container(
@@ -534,15 +559,12 @@ class ServerTagsView(LayoutView):
 class UserTagsView(LayoutView):
     def __init__(
         self,
-        previous_view: LayoutView,
     ) -> None:
         super().__init__(timeout=600)
 
         top_section = Section(
             TextDisplay("## User Tags\nAdd, delete or update user tags."),
-            accessory=OpenPageButton(
-                target_view=previous_view, label="Back", style=ButtonStyle.red
-            ),
+            accessory=BackButtonHomeReload(),
         )
 
         container = Container(
@@ -567,8 +589,19 @@ class PrefixModal(Modal, title="Add Prefix"):
         self.add_item(self.prefix_input)
 
     async def on_submit(self, interaction: Interaction["TitaniumBot"]) -> None:
+        if not interaction.guild_id:
+            raise RuntimeError("No guild ID")
+
         await interaction.response.defer(ephemeral=True)
-        assert interaction.guild_id, "Guild not found"
+
+        if not interaction.permissions.administrator:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Not Allowed",
+                description="You must have the Administrator permission to complete this action.",
+                colour=Colour.red(),
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
 
         async with get_session() as session:
             guild_settings = await session.get(GuildSettings, interaction.guild_id)
@@ -584,6 +617,7 @@ class PrefixModal(Modal, title="Add Prefix"):
                     colour=Colour.red(),
                 )
                 await interaction.followup.send(embed=embed, ephemeral=True)
+                return
 
             guild_settings.prefixes.append(self.prefix_input.value)
             flag_modified(guild_settings, "prefixes")
@@ -600,6 +634,15 @@ class AddPrefixButton(Button["PrefixView"]):
         self.previous_view = previous_view
 
     async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
+        if not interaction.permissions.administrator:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Not Allowed",
+                description="You must have the Administrator permission to complete this action.",
+                colour=Colour.red(),
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+
         await interaction.response.send_modal(PrefixModal(self.previous_view))
 
 
@@ -613,8 +656,19 @@ class PrefixDropdown(Select):
             self.add_option(label=prefix)
 
     async def callback(self, interaction: Interaction["TitaniumBot"]) -> None:
+        if not interaction.guild_id:
+            raise RuntimeError("No guild ID")
+
         await interaction.response.defer(ephemeral=True)
-        assert interaction.guild_id, "Guild not found"
+
+        if not interaction.permissions.administrator:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} Not Allowed",
+                description="You must have the Administrator permission to complete this action.",
+                colour=Colour.red(),
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
 
         async with get_session() as session:
             guild_settings = await session.get(GuildSettings, interaction.guild_id)
@@ -658,9 +712,7 @@ class PrefixView(LayoutView):
             TextDisplay(
                 "## Prefixes\nManage the prefixes that Titanium will respond to. You can also ping Titanium or use slash commands."
             ),
-            accessory=OpenPageButton(
-                target_view=previous_view, label="Back", style=ButtonStyle.red
-            ),
+            accessory=BackButtonHomeReload(),
         )
 
         allow_prefix = Section(
@@ -736,15 +788,12 @@ class ModulesView(LayoutView):
         self,
         bot: TitaniumBot,
         settings: GuildSettings,
-        previous_view: LayoutView,
     ) -> None:
         super().__init__(timeout=600)
 
         top_section = Section(
             TextDisplay("## Modules\nEnable or disable various feature modules."),
-            accessory=OpenPageButton(
-                target_view=previous_view, label="Back", style=ButtonStyle.red
-            ),
+            accessory=BackButtonHomeReload(),
         )
         mod_section = Section(
             TextDisplay("### Moderation\nModerate your server members and create cases."),
@@ -829,9 +878,13 @@ class SettingsView(LayoutView):
                     f"## Settings\nManage settings for your account and this server. To manage more server settings, please go to the {dashboard_url(interaction.guild.id)}."
                 )
         else:
-            top_section = TextDisplay(
-                "## Settings\nManage settings for your account and this server."
-            )
+            if bot.user:
+                top_section = Section(
+                    TextDisplay("## Settings\nManage settings for your account."),
+                    accessory=Thumbnail(media=bot.user.display_avatar.url),
+                )
+            else:
+                top_section = TextDisplay("## Settings\nManage settings for your account.")
 
         container = Container(
             top_section,
@@ -839,11 +892,11 @@ class SettingsView(LayoutView):
             accent_colour=Colour.light_grey(),
         )
 
-        if settings:
+        if settings and interaction.permissions.administrator:
             modules_section = Section(
                 TextDisplay("### Modules\nToggle various Titanium modules in this server."),
                 accessory=OpenPageButton(
-                    target_view=ModulesView(bot=bot, settings=settings, previous_view=self),
+                    target_view=ModulesView(bot=bot, settings=settings),
                     label="Manage",
                 ),
             )
@@ -856,20 +909,30 @@ class SettingsView(LayoutView):
                     label="Manage",
                 ),
             )
-            server_tags_section = Section(
-                TextDisplay("### Server Tags\nAdd, delete or update server tags."),
-                accessory=OpenPageButton(
-                    target_view=ServerTagsView(previous_view=self), label="Manage"
-                ),
-            )
 
             container.add_item(modules_section)
             container.add_item(prefixes_section)
+
+        if _get_if_server_tag_allowed(interaction, settings):
+            server_tags_section = Section(
+                TextDisplay("### Server Tags\nAdd, delete or update server tags."),
+                accessory=OpenPageButton(target_view=ServerTagsView(), label="Manage"),
+            )
             container.add_item(server_tags_section)
 
+        user_tags_str = "### User Tags\n"
+        if interaction.user.id in interaction.client.opt_out:
+            user_tags_str += "You have opted out of optional data collection, so you are not allowed to manage user tags."
+        else:
+            user_tags_str += "Add, delete and update user tags."
+
         user_tags_section = Section(
-            TextDisplay("### User Tags\nAdd, delete or update user tags."),
-            accessory=OpenPageButton(target_view=UserTagsView(previous_view=self), label="Manage"),
+            TextDisplay(user_tags_str),
+            accessory=OpenPageButton(
+                target_view=UserTagsView(),
+                label="Manage",
+                disabled=(interaction.user.id in interaction.client.opt_out),
+            ),
         )
 
         container.add_item(user_tags_section)
@@ -888,6 +951,8 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
         name="settings",
         description="Manage Titanium's settings for your account and the server.",
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def settings(self, interaction: Interaction["TitaniumBot"]) -> None:
         if not self.bot.user:
             return
@@ -899,7 +964,6 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
             interaction.is_guild_integration()
             and interaction.guild
             and isinstance(interaction.user, discord.Member)
-            and interaction.user.guild_permissions.administrator
         ):
             guild_settings = await self.bot.fetch_guild_config(interaction.guild.id)
 

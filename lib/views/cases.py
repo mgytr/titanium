@@ -163,14 +163,11 @@ class CommentPageContainer(discord.ui.Container):
         )
 
         self.add_item(discord.ui.Separator(spacing=discord.SeparatorSpacing.large))
-
         for comment in comments:
             self.add_item(Comment(bot, comment))
-
         self.add_item(discord.ui.Separator(spacing=discord.SeparatorSpacing.large))
 
         buttons = discord.ui.ActionRow()
-
         if show_case_button:
             buttons.add_item(ViewCaseButton(case=case, bot=bot))
 
@@ -195,9 +192,9 @@ class ViewCaseButton(discord.ui.Button):
 
         if (
             not isinstance(interaction.user, discord.Member)
-            or not interaction.user.guild_permissions.kick_members
-            or not interaction.user.guild_permissions.ban_members
-            or not interaction.user.guild_permissions.moderate_members
+            or not interaction.permissions.kick_members
+            or not interaction.permissions.ban_members
+            or not interaction.permissions.moderate_members
         ):
             embed = discord.Embed(
                 title=f"{interaction.client.error_emoji} Missing Permissions",
@@ -248,9 +245,9 @@ class ViewCommentsButton(discord.ui.Button):
 
         if (
             not isinstance(interaction.user, discord.Member)
-            or not interaction.user.guild_permissions.kick_members
-            or not interaction.user.guild_permissions.ban_members
-            or not interaction.user.guild_permissions.moderate_members
+            or not interaction.permissions.kick_members
+            or not interaction.permissions.ban_members
+            or not interaction.permissions.moderate_members
         ):
             embed = discord.Embed(
                 title=f"{interaction.client.error_emoji} Missing Permissions",

@@ -166,7 +166,8 @@ class BasicCommandsCog(
 
         prefix_str = ""
         config = await self.bot.fetch_guild_config(ctx.guild.id)
-        assert config, "No guild config found"
+        if not config:
+            raise ValueError("No guild config found")
 
         if not config.allow_prefix:
             embed = Embed(

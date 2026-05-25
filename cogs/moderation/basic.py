@@ -152,14 +152,6 @@ class ModerationBasicCog(
                         ephemeral=True, embed=mod_embeds.not_allowed(self.bot, member), **del_kwargs
                     )
 
-                # Check if Titanium can punish target
-                if not self._bot_perms_check(member, ctx):
-                    return await ctx.reply(
-                        ephemeral=True,
-                        embed=mod_embeds.titanium_not_allowed(self.bot, member),
-                        **del_kwargs,
-                    )
-
                 # Check if member is already being punished
                 if (
                     ctx.guild.id in self.bot.punishing
