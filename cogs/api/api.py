@@ -1438,8 +1438,8 @@ class APICog(commands.Cog):
             if (
                 len(validated_config.badword_detection)
                 + len(validated_config.spam_detection)
-                + len(validated_config.malicious_link_detection)
-                + len(validated_config.phishing_link_detection)
+                + len(validated_config.malicious_link)
+                + len(validated_config.phishing_link)
                 > config.limits.automod_rules
             ):
                 return web.json_response(
@@ -1462,8 +1462,8 @@ class APICog(commands.Cog):
                 for detection_config in [
                     validated_config.badword_detection,
                     validated_config.spam_detection,
-                    validated_config.malicious_link_detection,
-                    validated_config.phishing_link_detection,
+                    validated_config.malicious_link,
+                    validated_config.phishing_link,
                 ]:
                     detection_config: list[AutomodRuleModel]
                     for rule_model in detection_config:
@@ -1486,8 +1486,8 @@ class APICog(commands.Cog):
                 for detection_config in [
                     validated_config.badword_detection,
                     validated_config.spam_detection,
-                    validated_config.malicious_link_detection,
-                    validated_config.phishing_link_detection,
+                    validated_config.malicious_link,
+                    validated_config.phishing_link,
                 ]:
                     for rule_model in detection_config:
                         if (

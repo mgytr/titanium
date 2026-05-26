@@ -60,8 +60,8 @@ def automod_info(bot: TitaniumBot, request: web.Request, guild: Guild) -> web.Re
             {
                 "badword_detection": [],
                 "spam_detection": [],
-                "malicious_link_detection": [],
-                "phishing_link_detection": [],
+                "malicious_link": [],
+                "phishing_link": [],
             }
         )
 
@@ -97,8 +97,8 @@ def automod_info(bot: TitaniumBot, request: web.Request, guild: Guild) -> web.Re
             for detection_type in [
                 "badword_detection",
                 "spam_detection",
-                "malicious_link_detection",
-                "phishing_link_detection",
+                "malicious_link",
+                "phishing_link",
             ]
         }
     )

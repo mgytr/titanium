@@ -184,8 +184,8 @@ class AutomodRuleModel(BaseModel):
 class AutomodConfigModel(BaseModel):
     badword_detection: list["AutomodRuleModel"]
     spam_detection: list["AutomodRuleModel"]
-    malicious_link_detection: list["AutomodRuleModel"]
-    phishing_link_detection: list["AutomodRuleModel"]
+    malicious_link: list["AutomodRuleModel"]
+    phishing_link: list["AutomodRuleModel"]
 
 
 class BouncerCriterionModel(BaseModel):
