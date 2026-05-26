@@ -47,7 +47,6 @@ class AutomodMonitorCog(commands.Cog):
             # Check for server ID in config list
             if (
                 not message.guild
-                or message.guild.id not in self.bot.guild_configs
                 or not config
                 or not config.automod_settings
                 or not message.author

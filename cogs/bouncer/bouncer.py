@@ -34,7 +34,6 @@ class BouncerMonitorCog(commands.Cog):
         # Check for server ID in config list
         if (
             not member.guild
-            or member.guild.id not in self.bot.guild_configs
             or not config
             or not config.bouncer_settings
             or not member
