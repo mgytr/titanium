@@ -49,8 +49,10 @@ LOGGING_EVENTS = [
     LoggingType(event="guild_icon_update", name="Guild Icon Updated", description="When the guild's icon is changed.", category="Server Settings"),
     LoggingType(event="guild_features_update", name="Guild Features Updated", description="When the guild's features are updated.", category="Server Settings"),
     LoggingType(event="guild_emoji_create", name="Guild Emoji Created", description="When a new guild emoji is created.", category="Server Settings"),
+    LoggingType(event="guild_emoji_update", name="Guild Emoji Updated", description="When a guild emoji is updated.", category="Server Settings"),
     LoggingType(event="guild_emoji_delete", name="Guild Emoji Deleted", description="When a guild emoji is deleted.", category="Server Settings"),
     LoggingType(event="guild_sticker_create", name="Guild Sticker Created", description="When a new guild sticker is created.", category="Server Settings"),
+    LoggingType(event="guild_sticker_update", name="Guild Sticker Updated", description="When a guild sticker is updated.", category="Server Settings"),
     LoggingType(event="guild_sticker_delete", name="Guild Sticker Deleted", description="When a guild sticker is deleted.", category="Server Settings"),
     LoggingType(event="guild_invite_create", name="Guild Invite Created", description="When a server invite is created.", category="Server Settings"),
     LoggingType(event="guild_invite_delete", name="Guild Invite Deleted", description="When a server invite is deleted.", category="Server Settings"),
@@ -754,6 +756,7 @@ class GuildLogger:
 
         before_ids = {e.id for e in before}
         added = [e for e in after if e.id not in before_ids]
+
         embeds: list[discord.Embed] = []
         log = await self._get_audit_log_entry(discord.AuditLogAction.emoji_create)
 
@@ -778,6 +781,52 @@ class GuildLogger:
                 embed,
             )
 
+    async def guild_emoji_update(
+        self,
+        before: Sequence[discord.Emoji],
+        after: Sequence[discord.Emoji],
+    ) -> None:
+        await self._ensure_config()
+        if not self._exists_and_enabled("guild_emoji_update"):
+            return
+
+        before_ids = {e.id for e in before}
+        updated = [e for e in after if e.id in before_ids]
+
+        embeds: list[discord.Embed] = []
+        log = await self._get_audit_log_entry(discord.AuditLogAction.emoji_update)
+
+        for after_emoji in updated:
+            before_emoji = [emoji for emoji in before if emoji.id == after_emoji.id][0]
+            changes = []
+
+            if before_emoji.name != after_emoji.name:
+                changes.append(f"**Name:** `{before_emoji.name}` ➔ `{after_emoji.name}`")
+
+            if not changes:
+                continue
+
+            embed = discord.Embed(
+                title="Emoji Updated",
+                description=f"**Name:** `{after_emoji.name}` ({after_emoji})\n**ID:** `{after_emoji.id}`\n\n"
+                + "\n".join(changes),
+                colour=discord.Colour.yellow(),
+                timestamp=discord.utils.utcnow(),
+            )
+            embed.set_thumbnail(url=after_emoji.url if after_emoji.url else None)
+            await self._add_user_footer(embed, log)
+
+            embeds.append(embed)
+
+        for embed in embeds:
+            assert self.config is not None and self.config.logging_settings is not None
+            await self._send_to_webhook(
+                await self._find_webhook(
+                    self.config.logging_settings.channels.get("guild_emoji_update")
+                ),
+                embed,
+            )
+
     async def guild_emoji_delete(
         self,
         before: Sequence[discord.Emoji],
@@ -789,6 +838,7 @@ class GuildLogger:
 
         after_ids = {e.id for e in after}
         removed = [e for e in before if e.id not in after_ids]
+
         embeds: list[discord.Embed] = []
         log = await self._get_audit_log_entry(discord.AuditLogAction.emoji_delete)
 
@@ -824,6 +874,7 @@ class GuildLogger:
 
         before_ids = {e.id for e in before}
         added = [e for e in after if e.id not in before_ids]
+
         embeds: list[discord.Embed] = []
         log = await self._get_audit_log_entry(discord.AuditLogAction.sticker_create)
 
@@ -860,6 +911,60 @@ class GuildLogger:
                 embeds=group,
             )
 
+    async def guild_sticker_update(
+        self,
+        before: Sequence[discord.GuildSticker],
+        after: Sequence[discord.GuildSticker],
+    ) -> None:
+        await self._ensure_config()
+        if not self._exists_and_enabled("guild_sticker_update"):
+            return
+
+        before_ids = {e.id for e in before}
+        updated = [e for e in after if e.id in before_ids]
+
+        embeds: list[discord.Embed] = []
+        log = await self._get_audit_log_entry(discord.AuditLogAction.sticker_update)
+
+        for after_sticker in updated:
+            before_sticker = [sticker for sticker in before if sticker.id == after_sticker.id][0]
+            changes = []
+
+            if before_sticker.name != after_sticker.name:
+                changes.append(f"**Name:** `{before_sticker.name}` ➔ `{after_sticker.name}`")
+
+            if before_sticker.emoji != after_sticker.emoji:
+                changes.append(f"**Related Emoji:** {before_sticker.emoji} ➔ {after_sticker.emoji}")
+
+            if before_sticker.description != after_sticker.description:
+                changes.append(
+                    f"**Description:** `{before_sticker.description.replace('`', '')}` ➔ `{after_sticker.description.replace('`', '')}`"
+                )
+
+            if not changes:
+                continue
+
+            embed = discord.Embed(
+                title="Sticker Updated",
+                description=f"**Name:** `{after_sticker.name}` ({after_sticker})\n**ID:** `{after_sticker.id}`\n\n"
+                + "\n".join(changes),
+                colour=discord.Colour.yellow(),
+                timestamp=discord.utils.utcnow(),
+            )
+            embed.set_thumbnail(url=after_sticker.url if after_sticker.url else None)
+            await self._add_user_footer(embed, log)
+
+            embeds.append(embed)
+
+        for embed in embeds:
+            assert self.config is not None and self.config.logging_settings is not None
+            await self._send_to_webhook(
+                await self._find_webhook(
+                    self.config.logging_settings.channels.get("guild_sticker_update")
+                ),
+                embed,
+            )
+
     async def guild_sticker_delete(
         self,
         before: Sequence[discord.GuildSticker],
@@ -871,6 +976,7 @@ class GuildLogger:
 
         after_ids = {e.id for e in after}
         removed = [e for e in before if e.id not in after_ids]
+
         embeds: list[discord.Embed] = []
         log = await self._get_audit_log_entry(discord.AuditLogAction.sticker_delete)
 

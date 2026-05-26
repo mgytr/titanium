@@ -77,6 +77,7 @@ class EventLoggingCog(commands.Cog):
     ) -> None:
         guild_logger = GuildLogger(self.bot, guild)
         await guild_logger.guild_emoji_create(before, after)
+        await guild_logger.guild_emoji_update(before, after)
         await guild_logger.guild_emoji_delete(before, after)
 
     @commands.Cog.listener()
@@ -88,6 +89,7 @@ class EventLoggingCog(commands.Cog):
     ) -> None:
         guild_logger = GuildLogger(self.bot, guild)
         await guild_logger.guild_sticker_create(before, after)
+        await guild_logger.guild_sticker_update(before, after)
         await guild_logger.guild_sticker_delete(before, after)
 
     @commands.Cog.listener()
