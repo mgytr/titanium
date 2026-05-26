@@ -17,7 +17,9 @@ if TYPE_CHECKING:
     from main import TitaniumBot
 
 
-# TODO: fully test
+# TODO: possible idea
+# get the events from discord manually, but add a lock for the user id
+# then if the lock is active or something like that, ignore the manual event
 
 
 class BouncerMonitorCog(commands.Cog):

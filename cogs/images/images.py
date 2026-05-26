@@ -108,6 +108,23 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
             await ctx.reply(file=file)
 
     @image_group.command(
+        name="gif",
+        description="Convert an image to GIF. For more formats, use the /image format command.",
+    )
+    @app_commands.describe(image="The image to convert.")
+    async def gif_image(
+        self,
+        ctx: commands.Context["TitaniumBot"],
+        image: Attachment,
+    ) -> None:
+        """Convert a image to GIF."""
+        async with defer(ctx):
+            converter = img_tools.ImageTools(image)
+            file = await converter.convert(ImageFormats.GIF, self.STANDARD_QUALITY)
+
+            await ctx.reply(file=file)
+
+    @image_group.command(
         name="resize",
         description="Resize an uploaded image.",
     )
