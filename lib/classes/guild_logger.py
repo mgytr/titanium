@@ -946,7 +946,7 @@ class GuildLogger:
 
             embed = discord.Embed(
                 title="Sticker Updated",
-                description=f"**Name:** `{after_sticker.name}` ({after_sticker})\n**ID:** `{after_sticker.id}`\n\n"
+                description=f"**Name:** `{after_sticker.name}`\n**ID:** `{after_sticker.id}`\n\n"
                 + "\n".join(changes),
                 colour=discord.Colour.yellow(),
                 timestamp=discord.utils.utcnow(),
