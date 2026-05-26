@@ -323,6 +323,30 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
             await ctx.reply(file=file)
 
     @image_group.command(
+        name="overlay",
+        description="Overlay a static image onto another static image.",
+    )
+    @app_commands.describe(
+        source="The source image.",
+        overlay="The image to overlay.",
+        opacity="The percentage opacity of the overlay image.",
+        output_format="Optional: the format to output to. Defaults to GIF.",
+    )
+    async def overlay_image(
+        self,
+        ctx: commands.Context["TitaniumBot"],
+        source: Attachment,
+        overlay: Attachment,
+        opacity: commands.Range[int, 1, 100],
+        output_format: ImageFormats = ImageFormats.GIF,
+    ) -> None:
+        """Overlay a static image onto another static image."""
+        async with defer(ctx):
+            converter = img_tools.ImageTools(source)
+            file = await converter.overlay(overlay, opacity, output_format)
+            await ctx.reply(file=file)
+
+    @image_group.command(
         name="nasa",
         description="Create an image of characters spelt by Earth images by NASA Landsat.",
     )

@@ -3,7 +3,7 @@ import logging
 import os
 import textwrap
 from io import BytesIO
-from typing import Literal, Tuple
+from typing import Literal, Optional, Tuple
 
 import aiohttp
 from discord import Attachment, File
@@ -229,10 +229,14 @@ class ImageTools:
     def _load_sync(self, data: bytes) -> Image.Image:
         return Image.open(BytesIO(data))
 
-    async def _load_image(self) -> Image.Image:
-        if not self.image:
+    async def _load_image(self, attachment: Optional[Attachment] = None) -> Image.Image:
+        if not self.image and not attachment:
             raise ValueError("No image provided to load")
-        data = await self.image.read()
+
+        if attachment:
+            data = await attachment.read()
+        elif self.image:
+            data = await self.image.read()
 
         return await asyncio.to_thread(self._load_sync, data)
 
@@ -703,6 +707,32 @@ class ImageTools:
         img = await self._load_image()
         grayscale_img = await asyncio.to_thread(self._grayscale_sync, img)
         buffer = await asyncio.to_thread(self._save_sync, grayscale_img, output_format, 95)
+
+        return File(
+            fp=buffer,
+            filename=self._get_output_filename(output_format),
+        )
+
+    def _overlay_sync(self, source: Image.Image, overlay: Image.Image, opacity: int) -> Image.Image:
+        source = source.convert("RGBA")
+        overlay = overlay.convert("RGBA")
+        overlay = overlay.resize([source.width, source.height])
+
+        mask = Image.new(
+            mode="RGBA",
+            size=[source.width, source.height],
+            color=(0, 0, 0, int((opacity / 100) * 255)),
+        )
+
+        source.paste(overlay, mask=mask)
+        return source
+
+    async def overlay(self, overlay: Attachment, opacity: int, output_format: ImageFormats) -> File:
+        img = await self._load_image()
+        overlay_img = await self._load_image(overlay)
+
+        output_img = await asyncio.to_thread(self._overlay_sync, img, overlay_img, opacity)
+        buffer = await asyncio.to_thread(self._save_sync, output_img, output_format, 95)
 
         return File(
             fp=buffer,
