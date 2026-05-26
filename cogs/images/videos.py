@@ -30,6 +30,7 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
     @video_group.command(
         name="gif",
         description="Convert a video to GIF. Max 20MB, 10s, 15 FPS.",
+        aliases=["to-gif", "togif"],
     )
     @app_commands.describe(video="The video to convert to GIF.")
     async def gif_video(
@@ -118,6 +119,7 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
     @video_group.command(
         name="webp",
         description="Convert a video to WebP. Max 20MB, 20s, 30 FPS.",
+        aliases=["to-webp", "towebp"],
     )
     @app_commands.describe(video="The video to convert to WebP.")
     async def webp_video(

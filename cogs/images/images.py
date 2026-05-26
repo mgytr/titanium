@@ -110,6 +110,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
     @image_group.command(
         name="gif",
         description="Convert an image to GIF. For more formats, use the /image format command.",
+        aliases=["to-gif", "togif"],
     )
     @app_commands.describe(image="The image to convert.")
     async def gif_image(
