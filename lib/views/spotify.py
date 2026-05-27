@@ -160,12 +160,11 @@ class SongMenuView(View):
                         selector = SongLyricSelection()
                         for lyric_data in data:
                             selector.add_option(
-                                label=shorten(lyric_data["name"], width=100, placeholder="..."),
+                                label=shorten(lyric_data["name"], width=100),
                                 value=lyric_data["id"],
                                 description=shorten(
                                     f"{lyric_data['artistName']} - {lyric_data['albumName']}",
                                     width=100,
-                                    placeholder="...",
                                 ),
                             )
 

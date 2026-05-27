@@ -194,11 +194,7 @@ async def album(
 
     # Generate artist list
     artists_list = [escape_markdown(artist.name) for artist in item.artists]
-    artists = shorten(
-        ", ".join(artists_list),
-        width=256,
-        placeholder="...",
-    )
+    artists = shorten(", ".join(artists_list), width=256)
 
     # Generate pages with 15 items
     for i, track in enumerate(item.tracks.items):
@@ -209,7 +205,7 @@ async def album(
         if track_artists_list == artists_list:
             page.append(f"{i + 1}. **{shorten(track.name, width=200, placeholder='...')}**")
         else:
-            track_artists = shorten(", ".join(track_artists_list), width=100, placeholder="...")
+            track_artists = shorten(", ".join(track_artists_list), width=100)
 
             page.append(
                 f"{i + 1}. **{shorten(escape_markdown(item.tracks.items[i].name), width=100, placeholder='...')}** - {track_artists}"

@@ -3024,7 +3024,7 @@ class GuildLogger:
 
         embed.add_field(
             name="Content",
-            value=shorten(message or "*No content*", width=1024, placeholder="..."),
+            value=shorten(message or "*No content*", width=1024),
             inline=False,
         )
 

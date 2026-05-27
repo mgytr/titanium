@@ -6,6 +6,7 @@ import discord
 from discord import Colour, Embed, app_commands
 from discord.ext import commands
 
+from lib.helpers.hybrid import defer
 from lib.helpers.shorten import shorten_preserve
 
 if TYPE_CHECKING:
@@ -81,7 +82,7 @@ class FunCommandsCog(commands.GroupCog, group_name="fun", description="Fun comma
         if question:
             embed.add_field(
                 name="Your Question",
-                value=shorten_preserve(question, width=1024, placeholder="[...]"),
+                value=shorten_preserve(question, width=1024),
             )
 
         await ctx.reply(embed=embed)
@@ -363,37 +364,36 @@ class FunCommandsCog(commands.GroupCog, group_name="fun", description="Fun comma
     async def gh_roast(
         self, ctx: commands.Context["TitaniumBot"], username: str, ephemeral: bool = False
     ):
-        await ctx.defer(ephemeral=ephemeral)
+        async with defer(ctx, ephemeral=ephemeral):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        url="https://githubroast.mgytr.top/llama",
+                        json={"username": username, "language": "english"},
+                    ) as request:
+                        request.raise_for_status()
+                        response = await request.json()
+            except aiohttp.ClientResponseError as e:
+                embed = discord.Embed(
+                    title=f"{self.bot.error_emoji} Error",
+                    description=f"The roast API returned an error (`{e.status}`). Please try again later.",
+                    colour=Colour.red(),
+                )
+                await ctx.reply(embed=embed, ephemeral=ephemeral)
+                return
 
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url="https://githubroast.mgytr.top/llama",
-                    json={"username": username, "language": "english"},
-                ) as request:
-                    request.raise_for_status()
-                    response = await request.json()
-        except aiohttp.ClientResponseError as e:
             embed = discord.Embed(
-                title=f"{self.bot.error_emoji} Error",
-                description=f"The roast API returned an error (`{e.status}`). Please try again later.",
-                colour=Colour.red(),
+                title="AI GitHub Roast",
+                description=shorten_preserve(response["roast"], width=4096),
+                colour=Colour.light_grey(),
             )
+            embed.set_footer(
+                text=f"@{ctx.author.name} - https://githubroast.mgytr.top",
+                icon_url=ctx.author.display_avatar.url,
+            )
+            embed.set_author(name=username)
+
             await ctx.reply(embed=embed, ephemeral=ephemeral)
-            return
-
-        embed = discord.Embed(
-            title="AI GitHub Roast",
-            description=response["roast"],
-            colour=Colour.light_grey(),
-        )
-        embed.set_footer(
-            text=f"@{ctx.author.name} - https://githubroast.mgytr.top",
-            icon_url=ctx.author.display_avatar.url,
-        )
-        embed.set_author(name=username)
-
-        await ctx.reply(embed=embed, ephemeral=ephemeral)
 
 
 async def setup(bot: TitaniumBot) -> None:

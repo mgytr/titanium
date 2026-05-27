@@ -67,21 +67,16 @@ class MusicCommandsCog(
                     )
                 ]
 
-                title = shorten(
-                    text=f"{'(E) ' if item.explicit else ''}{item.name}",
-                    width=50,
-                    placeholder="...",
-                )
+                title = shorten(text=f"{'(E) ' if item.explicit else ''}{item.name}", width=50)
 
                 artists = shorten(
                     ", ".join(
                         [artist.name for artist in item.artists],
                     ),
                     width=22,
-                    placeholder="...",
                 )
 
-                album = shorten(text=item.album.name, width=22, placeholder="...")
+                album = shorten(text=item.album.name, width=22)
 
                 options.append(
                     app_commands.Choice(
@@ -118,21 +113,16 @@ class MusicCommandsCog(
                 ]
             else:
                 for item in result.items:
-                    title = shorten(
-                        text=f"{'(E) ' if item.explicit else ''}{item.name}",
-                        width=50,
-                        placeholder="...",
-                    )
+                    title = shorten(text=f"{'(E) ' if item.explicit else ''}{item.name}", width=50)
 
                     artists = shorten(
                         ", ".join(
                             [artist.name for artist in item.artists],
                         ),
                         width=22,
-                        placeholder="...",
                     )
 
-                    album = shorten(text=item.album.name, width=22, placeholder="...")
+                    album = shorten(text=item.album.name, width=22)
 
                     options.append(
                         app_commands.Choice(
@@ -210,9 +200,7 @@ class MusicCommandsCog(
                 for i, item in enumerate(result.items):
                     label = f"{shorten(item.name, width=90 if item.explicit else 100, placeholder='...')}{'(Explicit)' if item.explicit else ''}"
                     artist_string = ", ".join([artist.name for artist in item.artists])
-                    description = shorten(
-                        f"{artist_string} - {item.album.name}", width=100, placeholder="..."
-                    )
+                    description = shorten(f"{artist_string} - {item.album.name}", width=100)
 
                     options_list.append(
                         discord.SelectOption(label=label, description=description, value=str(i))
@@ -284,7 +272,7 @@ class MusicCommandsCog(
 
                 options.append(
                     app_commands.Choice(
-                        name=shorten(text=item.name, width=100, placeholder="..."),
+                        name=shorten(text=item.name, width=100),
                         value=item.name,
                     )
                 )
@@ -314,7 +302,7 @@ class MusicCommandsCog(
                 for item in result.items:
                     options.append(
                         app_commands.Choice(
-                            name=shorten(text=item.name, width=100, placeholder="..."),
+                            name=shorten(text=item.name, width=100),
                             value=item.id,
                         )
                     )
@@ -461,7 +449,7 @@ class MusicCommandsCog(
                 for artist in item.artists:
                     artists_list.append(artist.name)
 
-                artists = shorten(text=", ".join(artists_list), width=32, placeholder="...")
+                artists = shorten(text=", ".join(artists_list), width=32)
 
                 options.append(
                     app_commands.Choice(
@@ -494,9 +482,7 @@ class MusicCommandsCog(
             else:
                 for item in result.items:
                     artists = shorten(
-                        text=", ".join([artist.name for artist in item.artists]),
-                        width=32,
-                        placeholder="...",
+                        text=", ".join([artist.name for artist in item.artists]), width=32
                     )
 
                     options.append(
@@ -570,11 +556,9 @@ class MusicCommandsCog(
                 for i, item in enumerate(result.items):
                     options_list.append(
                         discord.SelectOption(
-                            label=shorten(item.name, width=100, placeholder="..."),
+                            label=shorten(item.name, width=100),
                             description=shorten(
-                                ", ".join([artist.name for artist in item.artists]),
-                                width=100,
-                                placeholder="...",
+                                ", ".join([artist.name for artist in item.artists]), width=100
                             ),
                             value=str(i),
                         )
@@ -939,12 +923,10 @@ class MusicCommandsCog(
             selector = SongLyricSelection()
             for lyric_data in data:
                 selector.add_option(
-                    label=shorten(lyric_data["name"], width=100, placeholder="..."),
+                    label=shorten(lyric_data["name"], width=100),
                     value=lyric_data["id"],
                     description=shorten(
-                        f"{lyric_data['artistName']} - {lyric_data['albumName']}",
-                        width=100,
-                        placeholder="...",
+                        f"{lyric_data['artistName']} - {lyric_data['albumName']}", width=100
                     ),
                 )
 
