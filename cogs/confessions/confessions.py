@@ -34,7 +34,7 @@ class ConfessionCog(commands.Cog, name="Confession", description="Anonymous mess
     ) -> None:
         await interaction.response.defer(ephemeral=True)
 
-        if interaction.guild is None:
+        if interaction.guild is None or not interaction.is_guild_integration():
             return
 
         if not isinstance(interaction.channel, discord.abc.Messageable):
