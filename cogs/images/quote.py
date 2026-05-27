@@ -19,6 +19,9 @@ from lib.helpers.hybrid import defer
 if TYPE_CHECKING:
     from main import TitaniumBot
 
+# TODO: the commands here are ported from v1 and the code is bad
+# this could probably do with a rewrite at some point, but it works for now
+
 
 def _to_gif(
     image_data: BytesIO,

@@ -226,6 +226,9 @@ class ImageTools:
 
         return f"titanium_{filename}.{output_format.value.lower()}"
 
+    def _is_spoiler(self) -> bool:
+        return bool(self.image and self.image.is_spoiler())
+
     def _load_sync(self, data: bytes) -> Image.Image:
         return Image.open(BytesIO(data))
 
@@ -322,8 +325,7 @@ class ImageTools:
         buffer = await asyncio.to_thread(self._save_sync, img, output_format, quality)
 
         return File(
-            fp=buffer,
-            filename=self._get_output_filename(output_format),
+            fp=buffer, filename=self._get_output_filename(output_format), spoiler=self._is_spoiler()
         )
 
     def _resize_sync(self, img: Image.Image, width: int, height: int) -> Image.Image:
@@ -343,8 +345,7 @@ class ImageTools:
         buffer = await asyncio.to_thread(self._save_sync, resized_img, output_format, 95)
 
         return File(
-            fp=buffer,
-            filename=self._get_output_filename(output_format),
+            fp=buffer, filename=self._get_output_filename(output_format), spoiler=self._is_spoiler()
         )
 
     def _deepfry(self, img: Image.Image, intensity_scale: float, red_filter: bool) -> BytesIO:
@@ -404,6 +405,7 @@ class ImageTools:
         return File(
             fp=final_buffer,
             filename=self._get_output_filename(output_format),
+            spoiler=self._is_spoiler(),
         )
 
     def _speech_bubble_sync(
@@ -485,6 +487,7 @@ class ImageTools:
         return File(
             fp=final_buffer,
             filename=self._get_output_filename(output_format),
+            spoiler=self._is_spoiler(),
         )
 
     async def _create_caption_frame(
@@ -654,6 +657,7 @@ class ImageTools:
         return File(
             fp=final_buffer,
             filename=self._get_output_filename(output_format),
+            spoiler=self._is_spoiler(),
         )
 
     def _rotate_sync(self, img: Image.Image, angle: int) -> Image.Image:
@@ -669,8 +673,7 @@ class ImageTools:
         buffer = await asyncio.to_thread(self._save_sync, rotated_img, output_format, 95)
 
         return File(
-            fp=buffer,
-            filename=self._get_output_filename(output_format),
+            fp=buffer, filename=self._get_output_filename(output_format), spoiler=self._is_spoiler()
         )
 
     def _invert_sync(self, img: Image.Image) -> Image.Image:
@@ -693,8 +696,7 @@ class ImageTools:
         buffer = await asyncio.to_thread(self._save_sync, inverted_img, output_format, 95)
 
         return File(
-            fp=buffer,
-            filename=self._get_output_filename(output_format),
+            fp=buffer, filename=self._get_output_filename(output_format), spoiler=self._is_spoiler()
         )
 
     def _grayscale_sync(self, img: Image.Image) -> Image.Image:
@@ -709,8 +711,7 @@ class ImageTools:
         buffer = await asyncio.to_thread(self._save_sync, grayscale_img, output_format, 95)
 
         return File(
-            fp=buffer,
-            filename=self._get_output_filename(output_format),
+            fp=buffer, filename=self._get_output_filename(output_format), spoiler=self._is_spoiler()
         )
 
     def _overlay_sync(self, source: Image.Image, overlay: Image.Image, opacity: int) -> Image.Image:
@@ -735,8 +736,7 @@ class ImageTools:
         buffer = await asyncio.to_thread(self._save_sync, output_img, output_format, 95)
 
         return File(
-            fp=buffer,
-            filename=self._get_output_filename(output_format),
+            fp=buffer, filename=self._get_output_filename(output_format), spoiler=self._is_spoiler()
         )
 
     def _nasa_sync(self, characters: list[BytesIO]) -> Image.Image:

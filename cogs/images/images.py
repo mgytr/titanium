@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 import aiohttp
 import discord
-from discord import Attachment, app_commands
+from discord import Attachment, Colour, app_commands
 from discord.ext import commands
 
 from lib.classes import img_tools
@@ -14,6 +14,48 @@ from lib.helpers.hybrid import defer, handle_group_command_not_found
 
 if TYPE_CHECKING:
     from main import TitaniumBot
+
+
+class ImageFormatPicker(discord.ui.View):
+    def __init__(self, message: discord.Message, quality: int):
+        super().__init__(timeout=5)
+
+        self.message: discord.Message = message
+        self.quality = quality
+        self.interaction: discord.Interaction["TitaniumBot"] | None = None
+
+        for image_format in ImageFormats:
+            self.format_picker.add_option(label=image_format.value)
+
+    async def on_timeout(self) -> None:
+        if self.interaction:
+            await self.interaction.delete_original_response()
+
+    @discord.ui.select(placeholder="Select a format...")
+    async def format_picker(
+        self, interaction: discord.Interaction["TitaniumBot"], select: discord.ui.Select
+    ) -> None:
+        self.stop()
+        await interaction.response.defer()
+
+        files = []
+        for attachment in self.message.attachments:
+            if not attachment.content_type or not attachment.content_type.startswith("image/"):
+                continue
+
+            converter = img_tools.ImageTools(attachment)
+            files.append(await converter.convert(ImageFormats[select.values[0]], self.quality))
+
+        if not files:
+            embed = discord.Embed(
+                title=f"{interaction.client.error_emoji} No Files Converted",
+                description="No files could be converted. Check that the files are actual files (not links) and valid images, then try again.",
+                colour=Colour.red(),
+            )
+            await interaction.edit_original_response(view=None, embed=embed)
+            return
+
+        await interaction.edit_original_response(view=None, attachments=files)
 
 
 class ImageCog(commands.Cog, name="Images", description="Image processing commands."):
@@ -50,6 +92,17 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
     def __init__(self, bot: TitaniumBot) -> None:
         self.bot: TitaniumBot = bot
 
+        self.quote_ctx = app_commands.ContextMenu(
+            name="Convert Images",
+            callback=self.convert_images_callback,
+            allowed_contexts=discord.app_commands.AppCommandContext(
+                guild=True, dm_channel=True, private_channel=True
+            ),
+            allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True),
+        )
+
+        self.bot.tree.add_command(self.quote_ctx)
+
     async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
         embed = discord.Embed(title=f"{self.bot.error_emoji} Error", colour=discord.Colour.red())
 
@@ -75,6 +128,24 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
             raise error
 
         await interaction.edit_original_response(embed=embed)
+
+    async def convert_images_callback(
+        self, interaction: discord.Interaction["TitaniumBot"], message: discord.Message
+    ) -> None:
+        await interaction.response.defer()
+
+        if not message.attachments:
+            embed = discord.Embed(
+                title=f"{self.bot.error_emoji} No Attachments",
+                description="Titanium can't see any attachments on this message. Make sure the images are actual attachments (not links), then try again.",
+                colour=Colour.red(),
+            )
+            await interaction.followup.send(embed=embed)
+            return
+
+        view = ImageFormatPicker(message=message, quality=self.STANDARD_QUALITY)
+        await interaction.followup.send(view=view)
+        view.interaction = interaction
 
     @commands.hybrid_group(
         name="image",

@@ -124,7 +124,11 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
             output_data = BytesIO(stdout_data)
             output_data.seek(0)
 
-            file = discord.File(output_data, filename=self._get_output_filename(video, "gif"))
+            file = discord.File(
+                output_data,
+                filename=self._get_output_filename(video, "gif"),
+                spoiler=video.is_spoiler(),
+            )
             await ctx.reply(file=file)
 
     @video_group.command(
@@ -217,7 +221,11 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
             output_data = BytesIO(stdout_data)
             output_data.seek(0)
 
-            file = discord.File(output_data, filename=self._get_output_filename(video, "webp"))
+            file = discord.File(
+                output_data,
+                filename=self._get_output_filename(video, "webp"),
+                spoiler=video.is_spoiler(),
+            )
             await ctx.reply(file=file)
 
 
