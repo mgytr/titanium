@@ -649,19 +649,33 @@ async def on_app_command_error(
 
 if __name__ == "__main__":
     if "--migrate" in sys.argv:
+        init_logger.info("Starting Titanium in migration mode...")
         asyncio.run(init_db())
         sys.exit(0)
 
-    if "--v1tov2" in sys.argv:
-        asyncio.run(migrate_v1_to_v2(bot, init_db))
-        sys.exit(0)
-
-    init_logger.info("Starting Titanium bot...")
     try:
         token = os.getenv("BOT_TOKEN")
 
         if token is None:
             raise discord.LoginFailure("No bot token provided in .env file.")
+
+        if "--v1tov2" in sys.argv:
+            init_logger.info("Starting Titanium in v1 to v2 mode...")
+
+            async def migration_hook():
+                await init_db()
+
+                async def run_migration():
+                    await bot.wait_until_ready()
+                    await migrate_v1_to_v2(bot)
+
+                bot.loop.create_task(run_migration())
+
+            bot.setup_hook = migration_hook
+            bot.run(token, log_handler=None)
+            sys.exit(0)
+
+        init_logger.info("Starting Titanium bot...")
 
         bot.connect_time = datetime.datetime.now(datetime.timezone.utc)
         bot.last_disconnect = None

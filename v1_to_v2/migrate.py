@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sqlite3
@@ -13,6 +14,7 @@ from lib.sql.sql import (
     LeaderboardUserStats,
     OptOutIDs,
     ServerCounterChannel,
+    Tag,
     get_session,
 )
 
@@ -29,7 +31,7 @@ def extract_emoji_id(emoji: str) -> str:
     return emoji
 
 
-async def migrate_fireboard(bot: TitaniumBot):
+async def migrate_fireboard(bot: TitaniumBot) -> None:
     with sqlite3.connect(os.path.join("v1_to_v2", "dbs", "fireboard.db")) as con:
         cur = con.cursor()
 
@@ -89,7 +91,7 @@ async def migrate_fireboard(bot: TitaniumBot):
                     session.add(new_fireboard_message)
 
 
-async def migrate_alternate_fireboard(bot: TitaniumBot, db_filename: str):
+async def migrate_alternate_fireboard(bot: TitaniumBot, db_filename: str) -> None:
     with sqlite3.connect(os.path.join("v1_to_v2", "dbs", db_filename)) as con:
         cur = con.cursor()
 
@@ -129,7 +131,7 @@ async def migrate_alternate_fireboard(bot: TitaniumBot, db_filename: str):
                     session.add(new_fireboard_message)
 
 
-async def migrate_server_counters(bot: TitaniumBot):
+async def migrate_server_counters(bot: TitaniumBot) -> None:
     with sqlite3.connect(os.path.join("v1_to_v2", "dbs", "server-counts.db")) as con:
         cur = con.cursor()
 
@@ -157,7 +159,7 @@ async def migrate_server_counters(bot: TitaniumBot):
                 await session.flush()
 
 
-async def migrate_leaderboard(bot: TitaniumBot):
+async def migrate_leaderboard(bot: TitaniumBot) -> None:
     with sqlite3.connect(os.path.join("v1_to_v2", "dbs", "lb.db")) as con:
         cur = con.cursor()
 
@@ -208,27 +210,83 @@ async def migrate_leaderboard(bot: TitaniumBot):
                     await session.execute(stmt)
 
 
-async def migrate_v1_to_v2(bot: TitaniumBot, init_db):
-    await init_db()
+async def migrate_tags(bot: TitaniumBot):
+    known_guilds: list[int] = []
+    known_users: list[int] = []
 
-    logging.info("Starting migration from v1 to v2...")
+    with sqlite3.connect(os.path.join("v1_to_v2", "dbs", "tags.db")) as con:
+        tags = con.execute("SELECT * FROM tags").fetchall()
 
-    if input("Migrate Fireboard data? (y/n) [n]: ").lower() == "y":
+    async with get_session() as session:
+        for tag in tags:
+            print(tag)
+            tag_owner = int(tag[1])
+            mode = ""
+
+            if tag_owner in known_guilds:
+                print("known guild")
+                mode = "guild"
+            elif tag_owner in known_users:
+                print("known user")
+                mode = "user"
+
+            if not mode:
+                if bot.get_guild(int(tag[1])):
+                    known_guilds.append(int(tag[1]))
+                    print("unknown guild")
+                    mode = "guild"
+                elif bot.get_user(int(tag[1])):
+                    known_users.append(int(tag[1]))
+                    print("unknown user")
+                    mode = "user"
+                elif await bot.fetch_user(int(tag[1])):
+                    known_users.append(int(tag[1]))
+                    print("unknown user")
+                    mode = "user"
+                else:
+                    print("unknown")
+                    continue
+
+            if mode == "guild":
+                await bot.init_guild(int(tag_owner), refresh=False)
+                new_tag = Tag(
+                    name=tag[2], content=tag[3], guild_id=tag_owner, is_user=False, owner_id=0
+                )
+            else:
+                new_tag = Tag(name=tag[2], content=tag[3], is_user=True, owner_id=tag_owner)
+
+            session.add(new_tag)
+
+
+async def migrate_v1_to_v2(bot: TitaniumBot):
+    for extension in list(bot.extensions):
+        await bot.unload_extension(extension)
+
+    logging.info("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nStarting migration from v1 to v2...")
+
+    if (await asyncio.to_thread(input, "Migrate Fireboard data? (y/n) [n]: ")).lower() == "y":
         await migrate_fireboard(bot)
         logging.info("Migrated Fireboard data.")
 
-    if input("Migrate Server Counter data? (y/n) [n]: ").lower() == "y":
+    if (await asyncio.to_thread(input, "Migrate Server Counter data? (y/n) [n]: ")).lower() == "y":
         await migrate_server_counters(bot)
         logging.info("Migrated Server Counter data.")
 
-    if input("Migrate Leaderboard data? (y/n) [n]: ").lower() == "y":
+    if (await asyncio.to_thread(input, "Migrate Leaderboard data? (y/n) [n]: ")).lower() == "y":
         await migrate_leaderboard(bot)
         logging.info("Migrated Leaderboard data.")
 
-    if input("Migrate alternate fireboard data? (y/n) [n]: ").lower() == "y":
+    if (
+        await asyncio.to_thread(input, "Migrate alternate fireboard data? (y/n) [n]: ")
+    ).lower() == "y":
         await migrate_alternate_fireboard(
-            bot, input("Enter alternate fireboard database filename: ")
+            bot, await asyncio.to_thread(input, "Enter alternate fireboard database filename: ")
         )
         logging.info("Migrated alternate fireboard data.")
 
+    if (await asyncio.to_thread(input, "Migrate Tag data? (y/n) [n]: ")).lower() == "y":
+        await migrate_tags(bot)
+        logging.info("Migrated Tags data.")
+
     logging.info("Migration from v1 to v2 completed.")
+    await bot.close()
