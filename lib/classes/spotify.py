@@ -228,7 +228,6 @@ class SpotifySimplifiedTrack(SpotifyBaseObj):
     duration_ms: int
     explicit: bool
     is_playable: Optional[bool]
-    linked_from: Annotated[Optional[SpotifyBaseObj], deprecated("This field is deprecated")]
     restrictions: Optional[dict[Literal["reason"], Literal["market", "product", "explicit"]]]
     preview_url: Annotated[Optional[str], deprecated("This field is deprecated")]
     track_number: int

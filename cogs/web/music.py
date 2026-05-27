@@ -3,11 +3,10 @@ import os
 from io import BytesIO
 from textwrap import shorten
 from typing import TYPE_CHECKING
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 import aiohttp
 import discord
-import spotipy
 from colorthief import ColorThief
 from discord import Colour, app_commands
 from discord.ext import commands
@@ -16,6 +15,7 @@ from discord.utils import escape_markdown
 
 import lib.embeds.spotify as elements
 from lib.classes.spotify import TitaniumSpotifyClient
+from lib.helpers.global_alias import add_global_aliases, global_alias, remove_global_aliases
 from lib.helpers.hybrid import defer, handle_group_command_not_found
 from lib.helpers.log_error import log_error
 from lib.views.spotify import SongLyricSelection
@@ -36,6 +36,10 @@ class MusicCommandsCog(
     def __init__(self, bot: TitaniumBot, client_id: str, client_secret: str) -> None:
         self.bot: TitaniumBot = bot
         self.sp = TitaniumSpotifyClient(client_id=client_id, client_secret=client_secret)
+        add_global_aliases(self, bot)
+
+    async def cog_unload(self) -> None:
+        remove_global_aliases(self, self.bot)
 
     @commands.hybrid_group(
         name="spotify", description="Search Spotify for songs, artists, albums and more."
@@ -54,42 +58,39 @@ class MusicCommandsCog(
         if current and current != "":
             # Check if search is Spotify ID
             if len(current) == 22 and " " not in current:
-                try:
-                    item = await self.sp.track(current)
+                item = await self.sp.track(current)
 
-                    options = [
-                        app_commands.Choice(
-                            name="Spotify ID detected, send command now to get info",
-                            value=current,
-                        )
-                    ]
-
-                    title = shorten(
-                        text=f"{'(E) ' if item.explicit else ''}{item.name}",
-                        width=50,
-                        placeholder="...",
+                options = [
+                    app_commands.Choice(
+                        name="Spotify ID detected, send command now to get info",
+                        value=current,
                     )
+                ]
 
-                    artists = shorten(
-                        ", ".join(
-                            [artist.name for artist in item.artists],
-                        ),
-                        width=22,
-                        placeholder="...",
+                title = shorten(
+                    text=f"{'(E) ' if item.explicit else ''}{item.name}",
+                    width=50,
+                    placeholder="...",
+                )
+
+                artists = shorten(
+                    ", ".join(
+                        [artist.name for artist in item.artists],
+                    ),
+                    width=22,
+                    placeholder="...",
+                )
+
+                album = shorten(text=item.album.name, width=22, placeholder="...")
+
+                options.append(
+                    app_commands.Choice(
+                        name=(f"{title} - {artists} ({album})"),
+                        value=item.id,
                     )
+                )
 
-                    album = shorten(text=item.album.name, width=22, placeholder="...")
-
-                    options.append(
-                        app_commands.Choice(
-                            name=(f"{title} - {artists} ({album})"),
-                            value=item.id,
-                        )
-                    )
-
-                    return options
-                except spotipy.exceptions.SpotifyException:
-                    pass
+                return options
 
             options = [
                 app_commands.Choice(
@@ -98,15 +99,7 @@ class MusicCommandsCog(
                 )
             ]
 
-            try:
-                result = await self.sp.search_tracks(current, limit=5)
-            except spotipy.exceptions.SpotifyException:
-                return [
-                    app_commands.Choice(
-                        name="Spotify error, send command now to search again",
-                        value=current,
-                    )
-                ]
+            result = await self.sp.search_tracks(current, limit=5)
 
             if result is None:
                 return [
@@ -158,7 +151,11 @@ class MusicCommandsCog(
             ]
 
     # Spotify Song Search command
-    @spotify_group.command(name="song", description="Search for a song on Spotify.")
+    @spotify_group.command(
+        name="song", aliases=["track"], description="Search for a song on Spotify."
+    )
+    @global_alias("song")
+    @global_alias("track")
     @commands.cooldown(1, 10)
     @app_commands.describe(
         search="What you are searching for.",
@@ -178,20 +175,17 @@ class MusicCommandsCog(
 
             # Check if search is Spotify ID
             if len(search) == 22 and " " not in search:
-                try:
-                    item = await self.sp.track(search)
+                item = await self.sp.track(search)
 
-                    await elements.song(
-                        bot=self.bot,
-                        sp=self.sp,
-                        item=item,
-                        ctx=ctx,
-                        ephemeral=ephemeral,
-                    )
+                await elements.song(
+                    bot=self.bot,
+                    sp=self.sp,
+                    item=item,
+                    ctx=ctx,
+                    ephemeral=ephemeral,
+                )
 
-                    return
-                except spotipy.exceptions.SpotifyException:
-                    pass
+                return
 
             # Search Spotify
             result = await self.sp.search_tracks(search, limit=10)
@@ -271,34 +265,31 @@ class MusicCommandsCog(
         if current and current != "":
             # Check if search is Spotify ID
             if len(current) == 22 and " " not in current:
-                try:
-                    item = await self.sp.artist(current)
+                item = await self.sp.artist(current)
 
-                    if item is None:
-                        return [
-                            app_commands.Choice(
-                                name="Spotify error, send command now to search again",
-                                value=current,
-                            )
-                        ]
-
-                    options = [
+                if item is None:
+                    return [
                         app_commands.Choice(
-                            name="Spotify ID detected, send command now to get info",
+                            name="Spotify error, send command now to search again",
                             value=current,
                         )
                     ]
 
-                    options.append(
-                        app_commands.Choice(
-                            name=shorten(text=item.name, width=100, placeholder="..."),
-                            value=item.name,
-                        )
+                options = [
+                    app_commands.Choice(
+                        name="Spotify ID detected, send command now to get info",
+                        value=current,
                     )
+                ]
 
-                    return options
-                except spotipy.exceptions.SpotifyException:
-                    pass
+                options.append(
+                    app_commands.Choice(
+                        name=shorten(text=item.name, width=100, placeholder="..."),
+                        value=item.name,
+                    )
+                )
+
+                return options
 
             options = [
                 app_commands.Choice(
@@ -307,18 +298,10 @@ class MusicCommandsCog(
                 )
             ]
 
-            try:
-                result = await self.sp.search_artists(current, limit=5)
+            result = await self.sp.search_artists(current, limit=5)
 
-                if result is None:
-                    raise ValueError
-            except spotipy.exceptions.SpotifyException, ValueError:
-                return [
-                    app_commands.Choice(
-                        name="Spotify error, send command now to search again",
-                        value=current,
-                    )
-                ]
+            if result is None:
+                raise ValueError
 
             if len(result.items) == 0:
                 options = [
@@ -347,6 +330,7 @@ class MusicCommandsCog(
 
     # Spotify Artist Search command
     @spotify_group.command(name="artist", description="Search for an artist on Spotify.")
+    @global_alias("artist")
     @commands.cooldown(1, 10)
     @app_commands.describe(
         search="What you are searching for.",
@@ -366,24 +350,21 @@ class MusicCommandsCog(
 
             # Check if search is Spotify ID
             if len(search) == 22 and " " not in search:
-                try:
-                    item = await self.sp.artist(search)
+                item = await self.sp.artist(search)
 
-                    if item is None:
-                        raise ValueError
+                if item is None:
+                    raise ValueError
 
-                    top_tracks = await self.sp.artist_top_tracks(item.id)
+                top_tracks = await self.sp.artist_top_tracks(item.id)
 
-                    await elements.artist(
-                        item=item,
-                        top_tracks=top_tracks,
-                        ctx=ctx,
-                        ephemeral=ephemeral,
-                    )
+                await elements.artist(
+                    item=item,
+                    top_tracks=top_tracks,
+                    ctx=ctx,
+                    ephemeral=ephemeral,
+                )
 
-                    return
-                except spotipy.exceptions.SpotifyException, ValueError:
-                    pass
+                return
 
             # Search Spotify
             result = await self.sp.search_artists(search, limit=10)
@@ -458,41 +439,38 @@ class MusicCommandsCog(
         if current and current != "":
             # Check if search is Spotify ID
             if len(current) == 22 and " " not in current:
-                try:
-                    item = await self.sp.album(current)
+                item = await self.sp.album(current)
 
-                    if item is None:
-                        return [
-                            app_commands.Choice(
-                                name="Spotify error, send command now to search again",
-                                value=current,
-                            )
-                        ]
-
-                    options = [
+                if item is None:
+                    return [
                         app_commands.Choice(
-                            name="Spotify ID detected, send command now to get info",
+                            name="Spotify error, send command now to search again",
                             value=current,
                         )
                     ]
 
-                    # Generate artist list
-                    artists_list = []
-                    for artist in item.artists:
-                        artists_list.append(artist.name)
-
-                    artists = shorten(text=", ".join(artists_list), width=32, placeholder="...")
-
-                    options.append(
-                        app_commands.Choice(
-                            name=f"{shorten(text=item.name, width=65, placeholder='...')} - {artists}",
-                            value=item.id,
-                        )
+                options = [
+                    app_commands.Choice(
+                        name="Spotify ID detected, send command now to get info",
+                        value=current,
                     )
+                ]
 
-                    return options
-                except spotipy.exceptions.SpotifyException:
-                    pass
+                # Generate artist list
+                artists_list = []
+                for artist in item.artists:
+                    artists_list.append(artist.name)
+
+                artists = shorten(text=", ".join(artists_list), width=32, placeholder="...")
+
+                options.append(
+                    app_commands.Choice(
+                        name=f"{shorten(text=item.name, width=65, placeholder='...')} - {artists}",
+                        value=item.id,
+                    )
+                )
+
+                return options
 
             options = [
                 app_commands.Choice(
@@ -501,18 +479,10 @@ class MusicCommandsCog(
                 )
             ]
 
-            try:
-                result = await self.sp.search_albums(current, limit=5)
+            result = await self.sp.search_albums(current, limit=5)
 
-                if result is None:
-                    raise ValueError
-            except spotipy.exceptions.SpotifyException, ValueError:
-                return [
-                    app_commands.Choice(
-                        name="Spotify error, send command now to search again",
-                        value=current,
-                    )
-                ]
+            if result is None:
+                raise ValueError
 
             if len(result.items) == 0:
                 options = [
@@ -547,6 +517,7 @@ class MusicCommandsCog(
 
     # Spotify Album Search command
     @spotify_group.command(name="album", description="Search for an album on Spotify.")
+    @global_alias("album")
     @commands.cooldown(1, 10)
     @app_commands.describe(
         search="What you are searching for.",
@@ -566,19 +537,16 @@ class MusicCommandsCog(
 
             # Check if search is Spotify ID
             if len(search) == 22 and " " not in search:
-                try:
-                    item = await self.sp.album(search)
+                item = await self.sp.album(search)
 
-                    await elements.album(
-                        sp=self.sp,
-                        item=item,
-                        ctx=ctx,
-                        ephemeral=ephemeral,
-                    )
+                await elements.album(
+                    sp=self.sp,
+                    item=item,
+                    ctx=ctx,
+                    ephemeral=ephemeral,
+                )
 
-                    return
-                except spotipy.exceptions.SpotifyException:
-                    pass
+                return
 
             # Search Spotify
             result = await self.sp.search_albums(search, limit=10)
@@ -649,6 +617,69 @@ class MusicCommandsCog(
                 # Edit initial message to show dropdown
                 msg = await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
 
+    @spotify_group.command(
+        name="url",
+        description="Get information about a Spotify track, album or artist link.",
+    )
+    @global_alias("spotifyurl")
+    @global_alias("song-url")
+    @global_alias("songurl")
+    @app_commands.describe(
+        url="The Spoptify link to get information for.",
+        ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
+    )
+    async def song_url(
+        self, ctx: commands.Context["TitaniumBot"], url: str, ephemeral: bool = False
+    ):
+        async with defer(ctx, ephemeral=ephemeral):
+            url = url.strip()
+            parsed_url = urlsplit(url)
+
+            if parsed_url.netloc == "open.spotify.com":
+                if parsed_url.path.startswith("/track/"):
+                    item = await self.sp.track(parsed_url.path.lstrip("/track/").split("?")[0])
+                    await elements.song(
+                        bot=self.bot,
+                        sp=self.sp,
+                        item=item,
+                        ctx=ctx,
+                        ephemeral=ephemeral,
+                    )
+                elif parsed_url.path.startswith("/album/"):
+                    item = await self.sp.album(parsed_url.path.lstrip("/album/").split("?")[0])
+                    await elements.album(
+                        sp=self.sp,
+                        item=item,
+                        ctx=ctx,
+                        ephemeral=ephemeral,
+                    )
+                elif parsed_url.path.startswith("/artist/"):
+                    item = await self.sp.artist(parsed_url.path.lstrip("/artist/").split("?")[0])
+                    top_tracks = await self.sp.artist_top_tracks(
+                        parsed_url.path.lstrip("/artist/").split("?")[0]
+                    )
+
+                    await elements.artist(
+                        item=item,
+                        top_tracks=top_tracks,
+                        ctx=ctx,
+                        ephemeral=ephemeral,
+                    )
+                else:
+                    embed = discord.Embed(
+                        title=f"{self.bot.error_emoji} Invalid Spotify Link",
+                        description="The provided Spotify link is invalid. Please ensure the link is either a track, album, or artist.",
+                        colour=Colour.red(),
+                    )
+                    await ctx.reply(embed=embed)
+            else:
+                embed = discord.Embed(
+                    title=f"{self.bot.error_emoji} Invalid Link",
+                    description="The provided link is invalid. Please ensure the link is either a Spotify track, album, or artist.",
+                    colour=Colour.red(),
+                )
+                await ctx.reply(embed=embed)
+
     # Spotify Image command
     @spotify_group.command(
         name="image", description="Get high quality album art from a Spotify URL."
@@ -698,108 +729,23 @@ class MusicCommandsCog(
 
                     return
 
-            try:
-                if "track" in url:
-                    result = await self.sp.track(url)
+            if "track" in url:
+                result = await self.sp.track(url)
 
-                    if result is None:
-                        embed = discord.Embed(
-                            title=f"{self.bot.error_emoji} No results found.",
-                            colour=Colour.red(),
-                        )
-                        embed.set_footer(
-                            text=f"@{ctx.author.name}",
-                            icon_url=ctx.author.display_avatar.url,
-                        )
-                        await ctx.reply(embed=embed, ephemeral=ephemeral)
-                        return
+                if result is None:
+                    embed = discord.Embed(
+                        title=f"{self.bot.error_emoji} No results found.",
+                        colour=Colour.red(),
+                    )
+                    embed.set_footer(
+                        text=f"@{ctx.author.name}",
+                        icon_url=ctx.author.display_avatar.url,
+                    )
+                    await ctx.reply(embed=embed, ephemeral=ephemeral)
+                    return
 
-                    if result.album.images is not None:
-                        image_url = result.album.images[0].url
-
-                        # Get image, store in memory
-                        async with aiohttp.ClientSession() as session:
-                            async with session.get(
-                                image_url, headers=self.REQUEST_HEADERS
-                            ) as request:
-                                image_data = BytesIO()
-
-                                async for chunk in request.content.iter_chunked(10):
-                                    image_data.write(chunk)
-
-                                image_data.seek(0)
-
-                        # Get dominant colour for embed
-                        color_thief = ColorThief(image_data)
-                        dominant_color = color_thief.get_color()
-
-                        if (
-                            result.album.images[0].height is None
-                            or result.album.images[0].width is None
-                        ):
-                            embed = discord.Embed(
-                                title=f"{result.name}",
-                                description="Viewing highest quality (Resolution unknown)",
-                                colour=Colour.from_rgb(
-                                    r=dominant_color[0],
-                                    g=dominant_color[1],
-                                    b=dominant_color[2],
-                                ),
-                            )
-                        else:
-                            embed = discord.Embed(
-                                title=f"{result.name}",
-                                description=f"Viewing highest quality ({result.album.images[0].width}x{result.album.images[0].height})",
-                                colour=Colour.from_rgb(
-                                    r=dominant_color[0],
-                                    g=dominant_color[1],
-                                    b=dominant_color[2],
-                                ),
-                            )
-
-                        embed.set_author(name=", ".join([artist.name for artist in result.artists]))
-                        embed.set_image(url=result.album.images[0].url)
-                        embed.set_footer(
-                            text=f"@{ctx.author.name}",
-                            icon_url=ctx.author.display_avatar.url,
-                        )
-
-                        view = View()
-                        view.add_item(
-                            discord.ui.Button(
-                                label="Open in Browser",
-                                style=discord.ButtonStyle.url,
-                                url=result.album.images[0].url,
-                            )
-                        )
-
-                        await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
-                    else:
-                        embed = discord.Embed(
-                            title=f"{self.bot.error_emoji} No album art available.",
-                            colour=Colour.red(),
-                        )
-                        embed.set_footer(
-                            text=f"@{ctx.author.name}",
-                            icon_url=ctx.author.display_avatar.url,
-                        )
-                        await ctx.reply(embed=embed, ephemeral=ephemeral)
-                elif "album" in url:
-                    result = await self.sp.album(url)
-
-                    if result is None:
-                        embed = discord.Embed(
-                            title=f"{self.bot.error_emoji} No results found.",
-                            colour=Colour.red(),
-                        )
-                        embed.set_footer(
-                            text=f"@{ctx.author.name}",
-                            icon_url=ctx.author.display_avatar.url,
-                        )
-                        await ctx.reply(embed=embed, ephemeral=ephemeral)
-                        return
-
-                    image_url = result.images[0].url
+                if result.album.images is not None:
+                    image_url = result.album.images[0].url
 
                     # Get image, store in memory
                     async with aiohttp.ClientSession() as session:
@@ -815,59 +761,50 @@ class MusicCommandsCog(
                     color_thief = ColorThief(image_data)
                     dominant_color = color_thief.get_color()
 
-                    if result.images is not None:
-                        if result.images[0].height is None or result.images[0].width is None:
-                            embed = discord.Embed(
-                                title=result.name,
-                                description="Viewing highest quality (Resolution unknown)",
-                                colour=Colour.from_rgb(
-                                    r=dominant_color[0],
-                                    g=dominant_color[1],
-                                    b=dominant_color[2],
-                                ),
-                            )
-                        else:
-                            embed = discord.Embed(
-                                title=f"{result.name}",
-                                description=f"Viewing highest quality ({result.images[0].width}x{result.images[0].height})",
-                                colour=Colour.from_rgb(
-                                    r=dominant_color[0],
-                                    g=dominant_color[1],
-                                    b=dominant_color[2],
-                                ),
-                            )
-
-                        embed.set_author(name=", ".join([artist.name for artist in result.artists]))
-                        embed.set_image(url=result.images[0].url)
-                        embed.set_footer(
-                            text=f"@{ctx.author.name}",
-                            icon_url=ctx.author.display_avatar.url,
+                    if (
+                        result.album.images[0].height is None
+                        or result.album.images[0].width is None
+                    ):
+                        embed = discord.Embed(
+                            title=f"{result.name}",
+                            description="Viewing highest quality (Resolution unknown)",
+                            colour=Colour.from_rgb(
+                                r=dominant_color[0],
+                                g=dominant_color[1],
+                                b=dominant_color[2],
+                            ),
                         )
-
-                        view = View()
-                        view.add_item(
-                            discord.ui.Button(
-                                label="Open in Browser",
-                                style=discord.ButtonStyle.url,
-                                url=result.images[0].url,
-                            )
-                        )
-
-                        await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
                     else:
                         embed = discord.Embed(
-                            title=f"{self.bot.error_emoji} No album art available.",
-                            colour=Colour.red(),
+                            title=f"{result.name}",
+                            description=f"Viewing highest quality ({result.album.images[0].width}x{result.album.images[0].height})",
+                            colour=Colour.from_rgb(
+                                r=dominant_color[0],
+                                g=dominant_color[1],
+                                b=dominant_color[2],
+                            ),
                         )
-                        embed.set_footer(
-                            text=f"@{ctx.author.name}",
-                            icon_url=ctx.author.display_avatar.url,
+
+                    embed.set_author(name=", ".join([artist.name for artist in result.artists]))
+                    embed.set_image(url=result.album.images[0].url)
+                    embed.set_footer(
+                        text=f"@{ctx.author.name}",
+                        icon_url=ctx.author.display_avatar.url,
+                    )
+
+                    view = View()
+                    view.add_item(
+                        discord.ui.Button(
+                            label="Open in Browser",
+                            style=discord.ButtonStyle.url,
+                            url=result.album.images[0].url,
                         )
-                        await ctx.reply(embed=embed, ephemeral=ephemeral)
+                    )
+
+                    await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
                 else:
                     embed = discord.Embed(
-                        title=f"{self.bot.error_emoji} Invalid URL",
-                        description="Only `track` and `album` URLs are supported by this command.",
+                        title=f"{self.bot.error_emoji} No album art available.",
                         colour=Colour.red(),
                     )
                     embed.set_footer(
@@ -875,22 +812,94 @@ class MusicCommandsCog(
                         icon_url=ctx.author.display_avatar.url,
                     )
                     await ctx.reply(embed=embed, ephemeral=ephemeral)
-            except spotipy.exceptions.SpotifyException as error:
-                error_id = await log_error(
-                    bot=self.bot,
-                    module="Spotify",
-                    guild_id=ctx.guild.id if ctx.guild else None,
-                    error="Spotify error occurred while searching URL",
-                    exc=error,
-                )
+            elif "album" in url:
+                result = await self.sp.album(url)
 
+                if result is None:
+                    embed = discord.Embed(
+                        title=f"{self.bot.error_emoji} No results found.",
+                        colour=Colour.red(),
+                    )
+                    embed.set_footer(
+                        text=f"@{ctx.author.name}",
+                        icon_url=ctx.author.display_avatar.url,
+                    )
+                    await ctx.reply(embed=embed, ephemeral=ephemeral)
+                    return
+
+                image_url = result.images[0].url
+
+                # Get image, store in memory
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url, headers=self.REQUEST_HEADERS) as request:
+                        image_data = BytesIO()
+
+                        async for chunk in request.content.iter_chunked(10):
+                            image_data.write(chunk)
+
+                        image_data.seek(0)
+
+                # Get dominant colour for embed
+                color_thief = ColorThief(image_data)
+                dominant_color = color_thief.get_color()
+
+                if result.images is not None:
+                    if result.images[0].height is None or result.images[0].width is None:
+                        embed = discord.Embed(
+                            title=result.name,
+                            description="Viewing highest quality (Resolution unknown)",
+                            colour=Colour.from_rgb(
+                                r=dominant_color[0],
+                                g=dominant_color[1],
+                                b=dominant_color[2],
+                            ),
+                        )
+                    else:
+                        embed = discord.Embed(
+                            title=f"{result.name}",
+                            description=f"Viewing highest quality ({result.images[0].width}x{result.images[0].height})",
+                            colour=Colour.from_rgb(
+                                r=dominant_color[0],
+                                g=dominant_color[1],
+                                b=dominant_color[2],
+                            ),
+                        )
+
+                    embed.set_author(name=", ".join([artist.name for artist in result.artists]))
+                    embed.set_image(url=result.images[0].url)
+                    embed.set_footer(
+                        text=f"@{ctx.author.name}",
+                        icon_url=ctx.author.display_avatar.url,
+                    )
+
+                    view = View()
+                    view.add_item(
+                        discord.ui.Button(
+                            label="Open in Browser",
+                            style=discord.ButtonStyle.url,
+                            url=result.images[0].url,
+                        )
+                    )
+
+                    await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
+                else:
+                    embed = discord.Embed(
+                        title=f"{self.bot.error_emoji} No album art available.",
+                        colour=Colour.red(),
+                    )
+                    embed.set_footer(
+                        text=f"@{ctx.author.name}",
+                        icon_url=ctx.author.display_avatar.url,
+                    )
+                    await ctx.reply(embed=embed, ephemeral=ephemeral)
+            else:
                 embed = discord.Embed(
-                    title=f"{self.bot.error_emoji} Spotify Error",
-                    description="An unknown Spotify error occurred while processing the URL. Please try again later.",
+                    title=f"{self.bot.error_emoji} Invalid URL",
+                    description="Only `track` and `album` URLs are supported by this command.",
                     colour=Colour.red(),
                 )
                 embed.set_footer(
-                    text=f"@{ctx.author.name} - {error_id}",
+                    text=f"@{ctx.author.name}",
                     icon_url=ctx.author.display_avatar.url,
                 )
                 await ctx.reply(embed=embed, ephemeral=ephemeral)
@@ -909,47 +918,46 @@ class MusicCommandsCog(
         search: commands.Range[str, 1, 100],
         ephemeral: bool = False,
     ) -> None:
-        await ctx.defer(ephemeral=ephemeral)
+        async with defer(ctx, ephemeral=ephemeral):
+            url = f"https://lrclib.net/api/search?q={quote(search)}"
+            headers = {"User-Agent": os.getenv("REQUEST_USER_AGENT", "")}
 
-        url = f"https://lrclib.net/api/search?q={quote(search)}"
-        headers = {"User-Agent": os.getenv("REQUEST_USER_AGENT", "")}
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers) as response:
+                    response.raise_for_status()
+                    data = await response.json()
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as response:
-                response.raise_for_status()
-                data = await response.json()
+            if data == []:
+                embed = discord.Embed(
+                    title=f"{self.bot.error_emoji} Not Found",
+                    description="No results were found for your search. Please try another search term.",
+                    colour=Colour.red(),
+                )
+                await ctx.reply(embed=embed, ephemeral=ephemeral)
+                return
 
-        if data == []:
+            selector = SongLyricSelection()
+            for lyric_data in data:
+                selector.add_option(
+                    label=shorten(lyric_data["name"], width=100, placeholder="..."),
+                    value=lyric_data["id"],
+                    description=shorten(
+                        f"{lyric_data['artistName']} - {lyric_data['albumName']}",
+                        width=100,
+                        placeholder="...",
+                    ),
+                )
+
             embed = discord.Embed(
-                title=f"{self.bot.error_emoji} Not Found",
-                description="No results were found for your search. Please try another search term.",
-                colour=Colour.red(),
-            )
-            await ctx.reply(embed=embed, ephemeral=ephemeral)
-            return
-
-        selector = SongLyricSelection()
-        for lyric_data in data:
-            selector.add_option(
-                label=shorten(lyric_data["name"], width=100, placeholder="..."),
-                value=lyric_data["id"],
-                description=shorten(
-                    f"{lyric_data['artistName']} - {lyric_data['albumName']}",
-                    width=100,
-                    placeholder="...",
-                ),
+                title=f"{self.bot.info_emoji} Select a song",
+                description=f"`{len(data)}` results were found for `{search}`. Select an option below.",
+                colour=Colour.light_grey(),
             )
 
-        embed = discord.Embed(
-            title=f"{self.bot.info_emoji} Select a song",
-            description=f"`{len(data)}` results were found for `{search}`. Select an option below.",
-            colour=Colour.light_grey(),
-        )
+            view = View(timeout=900)
+            view.add_item(selector)
 
-        view = View(timeout=900)
-        view.add_item(selector)
-
-        await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
+            await ctx.reply(embed=embed, view=view, ephemeral=ephemeral)
 
 
 async def setup(bot: TitaniumBot) -> None:
