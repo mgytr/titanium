@@ -273,14 +273,29 @@ class APICog(commands.Cog):
             return web.json_response({"error": "invalid payload"}, status=400)
 
         bot_guild_ids: set[int] = {guild.id for guild in self.bot.guilds}
+        mutual_guild_ids: list[str] = [
+            str(guild_id) for guild_id in bot_guild_ids if str(guild_id) in guild_ids
+        ]
+        delegate_guild_ids: list[str] = []
 
-        return web.json_response(
-            [
-                str(guild_id)
-                for guild_id in guild_ids
-                if guild_id.isdigit() and int(guild_id) in bot_guild_ids
-            ]
-        )
+        for mutual_id in mutual_guild_ids:
+            guild = self.bot.get_guild(int(mutual_id))
+            if not guild:
+                continue
+
+            member = guild.get_member(int(user_id))
+            if not member:
+                continue
+
+            config = await self.bot.fetch_guild_config(guild.id)
+            if not config:
+                raise RuntimeError("No guild config returned")
+
+            delegate_roles = config.case_managers + config.dashboard_managers
+            if any([role.id in delegate_roles for role in member.roles]):
+                delegate_guild_ids.append(mutual_id)
+
+        return web.json_response({"mutual": mutual_guild_ids, "delegate": delegate_guild_ids})
 
     async def in_guild(self, request: web.Request) -> web.Response:
         user_id = request.match_info.get("user_id")
