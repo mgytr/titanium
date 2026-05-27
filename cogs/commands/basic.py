@@ -71,14 +71,31 @@ class BasicCommandsCog(
         await ctx.defer()
 
         embed = Embed(
-            title="Titanium",
-            description="This is a development version of Titanium. For more information, please go to https://github.com/RestartB/titanium/tree/v2.",
+            title="About",
+            description="Titanium is **your** multipurpose, open source Discord bot developed by **Restart**. "
+            "It can operate as a traditional server bot, and as a user app, so your Discord experience can be enhanced in any server. "
+            "Titanium includes the following powerful features (and more!) for free:\n\n"
+            "- powerful moderation, automod and logging tools\n"
+            "- bouncer system to monitor user profiles\n"
+            "- leaderboard, starboard and confession system to improve engagement\n"
+            "- server wide quick response tags, or user specific tags that work in any server\n"
+            "- web dashboard for easy management of your server's Titanium settings\n"
+            "- utility, web search, image manipulation, fun commands and more that work in any server when you add Titanium to your account\n\n"
+            "To add Titanium to your server or account, press the `Add App` button on Titanium's profile, or use the Add Bot link on Titanium's website!",
             colour=Colour.light_grey(),
         )
-        embed.set_thumbnail(url=self.bot.user.display_avatar.url if self.bot.user else None)
+        embed.set_author(
+            name="Titanium",
+            url="https://titaniumbot.me",
+            icon_url=self.bot.user.display_avatar.url if self.bot.user else "",
+        )
         embed.set_footer(
             text=f"@{ctx.author.name}",
             icon_url=ctx.author.display_avatar.url,
+        )
+        embed.add_field(
+            name="Links",
+            value="**Website:** https://titaniumbot.me\n**Dashboard:** https://dash.titaniumbot.me\n**Support Server:** https://titaniumbot.me/server",
         )
 
         await ctx.reply(embed=embed)
