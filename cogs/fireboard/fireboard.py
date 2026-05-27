@@ -582,7 +582,7 @@ class FireboardCog(commands.Cog):
 
                 if (
                     channel is None
-                    or channel.guild.id != event.guild_id
+                    or channel.guild.id != payload.guild_id
                     or isinstance(
                         channel,
                         (
@@ -674,7 +674,7 @@ class FireboardCog(commands.Cog):
 
                 if (
                     channel is None
-                    or channel.guild.id != event.guild_id
+                    or channel.guild.id != payload.guild_id
                     or isinstance(
                         channel,
                         (
