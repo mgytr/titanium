@@ -273,13 +273,17 @@ class FireboardCog(commands.Cog):
                 processed_boards.append(fireboard_message.fireboard.id)
                 board_channel = self.bot.get_channel(fireboard_message.fireboard.channel_id)
 
-                if board_channel is None or isinstance(
-                    board_channel,
-                    (
-                        discord.ForumChannel,
-                        discord.CategoryChannel,
-                        discord.abc.PrivateChannel,
-                    ),
+                if (
+                    board_channel is None
+                    or board_channel.guild.id != event.guild_id
+                    or isinstance(
+                        board_channel,
+                        (
+                            discord.ForumChannel,
+                            discord.CategoryChannel,
+                            discord.abc.PrivateChannel,
+                        ),
+                    )
                 ):
                     self.logger.debug(
                         f"Channel {fireboard_message.fireboard.channel_id} not found or invalid type"
@@ -412,13 +416,17 @@ class FireboardCog(commands.Cog):
             )
             board_channel = self.bot.get_channel(board.channel_id)
 
-            if board_channel is None or isinstance(
-                board_channel,
-                (
-                    discord.ForumChannel,
-                    discord.CategoryChannel,
-                    discord.abc.PrivateChannel,
-                ),
+            if (
+                board_channel is None
+                or board_channel.guild.id != event.guild_id
+                or isinstance(
+                    board_channel,
+                    (
+                        discord.ForumChannel,
+                        discord.CategoryChannel,
+                        discord.abc.PrivateChannel,
+                    ),
+                )
             ):
                 self.logger.debug(f"Board channel {board.channel_id} not found or invalid type")
                 return
@@ -572,13 +580,17 @@ class FireboardCog(commands.Cog):
                 self.logger.debug("Found matching message")
                 channel = self.bot.get_channel(fireboard_message.fireboard.channel_id)
 
-                if channel is None or isinstance(
-                    channel,
-                    (
-                        discord.ForumChannel,
-                        discord.CategoryChannel,
-                        discord.abc.PrivateChannel,
-                    ),
+                if (
+                    channel is None
+                    or channel.guild.id != event.guild_id
+                    or isinstance(
+                        channel,
+                        (
+                            discord.ForumChannel,
+                            discord.CategoryChannel,
+                            discord.abc.PrivateChannel,
+                        ),
+                    )
                 ):
                     self.logger.debug("Edit channel not found")
                     continue
@@ -660,13 +672,17 @@ class FireboardCog(commands.Cog):
                 )
                 channel = self.bot.get_channel(fireboard_message.fireboard.channel_id)
 
-                if channel is None or isinstance(
-                    channel,
-                    (
-                        discord.ForumChannel,
-                        discord.CategoryChannel,
-                        discord.abc.PrivateChannel,
-                    ),
+                if (
+                    channel is None
+                    or channel.guild.id != event.guild_id
+                    or isinstance(
+                        channel,
+                        (
+                            discord.ForumChannel,
+                            discord.CategoryChannel,
+                            discord.abc.PrivateChannel,
+                        ),
+                    )
                 ):
                     self.logger.debug(
                         f"Channel {fireboard_message.fireboard.channel_id} not found or invalid type"
@@ -744,7 +760,7 @@ class FireboardCog(commands.Cog):
                 self.logger.debug(
                     f"Found matching fireboard message {fireboard_message.fireboard_message_id}"
                 )
-                channel = self.bot.get_channel(fireboard_message.fireboard.channel_id)
+                channel = message.guild.get_channel(fireboard_message.fireboard.channel_id)
 
                 if channel is None or isinstance(
                     channel,
@@ -827,7 +843,7 @@ class FireboardCog(commands.Cog):
                 self.logger.debug(
                     f"Found matching fireboard message {fireboard_message.fireboard_message_id} for emoji {reaction.emoji}"
                 )
-                channel = self.bot.get_channel(fireboard_message.fireboard.channel_id)
+                channel = reaction.message.guild.get_channel(fireboard_message.fireboard.channel_id)
 
                 if channel is None or isinstance(
                     channel,

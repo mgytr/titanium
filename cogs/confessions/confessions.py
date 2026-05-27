@@ -66,7 +66,7 @@ class ConfessionCog(commands.Cog, name="Confession", description="Anonymous mess
             not guild_settings.confessions_settings.confessions_in_channel
             and guild_settings.confessions_settings.confessions_channel_id
         ):
-            channel = self.bot.get_channel(
+            channel = interaction.guild.get_channel(
                 guild_settings.confessions_settings.confessions_channel_id
             )
 
