@@ -1,6 +1,6 @@
 import asyncio
 from io import BytesIO
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import discord
 from discord import Attachment, Colour, app_commands
@@ -16,6 +16,17 @@ if TYPE_CHECKING:
 class VideoCog(commands.Cog, name="Videos", description="Video processing commands."):
     def __init__(self, bot: TitaniumBot) -> None:
         self.bot: TitaniumBot = bot
+
+    def _get_output_filename(
+        self, attachment: Attachment, output_format: Literal["gif", "webp"]
+    ) -> str:
+        """Generate output filename safely handling files with or without extensions."""
+        filename = (
+            attachment.filename.rsplit(".", 1)[0]
+            if "." in attachment.filename
+            else attachment.filename
+        )
+        return f"titanium_{filename}.{output_format.lower()}"
 
     @commands.hybrid_group(
         name="video",
@@ -113,7 +124,7 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
             output_data = BytesIO(stdout_data)
             output_data.seek(0)
 
-            file = discord.File(output_data, filename="converted.gif")
+            file = discord.File(output_data, filename=self._get_output_filename(video, "gif"))
             await ctx.reply(file=file)
 
     @video_group.command(
@@ -206,7 +217,7 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
             output_data = BytesIO(stdout_data)
             output_data.seek(0)
 
-            file = discord.File(output_data, filename="converted.webp")
+            file = discord.File(output_data, filename=self._get_output_filename(video, "webp"))
             await ctx.reply(file=file)
 
 
