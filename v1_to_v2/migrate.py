@@ -219,32 +219,25 @@ async def migrate_tags(bot: TitaniumBot):
 
     async with get_session() as session:
         for tag in tags:
-            print(tag)
             tag_owner = int(tag[1])
             mode = ""
 
             if tag_owner in known_guilds:
-                print("known guild")
                 mode = "guild"
             elif tag_owner in known_users:
-                print("known user")
                 mode = "user"
 
             if not mode:
                 if bot.get_guild(int(tag[1])):
                     known_guilds.append(int(tag[1]))
-                    print("unknown guild")
                     mode = "guild"
                 elif bot.get_user(int(tag[1])):
                     known_users.append(int(tag[1]))
-                    print("unknown user")
                     mode = "user"
                 elif await bot.fetch_user(int(tag[1])):
                     known_users.append(int(tag[1]))
-                    print("unknown user")
                     mode = "user"
                 else:
-                    print("unknown")
                     continue
 
             if mode == "guild":
