@@ -1,8 +1,8 @@
 # Titanium v2
 
-Welcome to the Titanium v2 branch! This branch is used for Titanium v2 development, and will eventually become the main Titanium branch.
+Welcome to Titanium's main code repo! Titanium is your multipurpose, open source Discord bot.
 
-Titanium v2 includes many new features designed to improve your Discord experience, such as:
+Titanium v2 includes many features designed to improve your Discord experience, such as:
 
 - complete rewrite of Titanium v1 to include better code and SQLAlchemy ORM
 - full user app support with info commands, Spotify commands, image commands and more
@@ -17,17 +17,11 @@ Titanium v2 includes many new features designed to improve your Discord experien
 - tags to allow you to send quick responses to messages
 - and more!
 
-> [!CAUTION]
-> Titanium v2 currently in active development. Many features are constantly changing, haven't been tested yet, and may be removed at any time. It is certain that there will be unfixed bugs, and there may be data loss. It is not recommended at this time to use Titanium v2 in production. I will not provide any support for discovered bugs / data loss at this time, and the terms of service / privacy policies for Titanium v1 do not apply to Titanium v2.
-
 > [!IMPORTANT]
-> This project is in highly active development. Therefore, I am not accepting PRs or code edits for this repo at this time. Once the initial version has been released, I will be happy to accept new minor PRs again.
-
-> [!IMPORTANT]
-> You will need to run a PostgreSQL server to run the bot.
+> Due to developer workload, I am only accepting PRs for minor features or bug fixes at this time. Please create an issue or discussion first before creating a PR, to allow me to review your request.
 
 > [!CAUTION]
-> Titanium v2 is only tested to run on macOS and Linux. Windows support is untested, and may have unexpected issues.
+> You will need to run a PostgreSQL server to run the bot. Additionally, Titanium v2 is only tested to run on macOS and Linux. Windows support is untested, and may have unexpected issues.
 
 ## Database Setup
 

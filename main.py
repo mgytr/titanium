@@ -73,7 +73,7 @@ init_logger: logging.Logger = logging.getLogger("init")
 cache_logger: logging.Logger = logging.getLogger("cache")
 db_logger: logging.Logger = logging.getLogger("db")
 
-init_logger.info("Welcome to Titanium - v2 Development Version")
+init_logger.info("Welcome to Titanium v2")
 init_logger.info("https://github.com/restartb/titanium")
 
 
