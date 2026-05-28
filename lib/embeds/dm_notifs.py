@@ -69,17 +69,6 @@ def banned_dm(
     )
 
 
-def unbanned_dm(
-    bot: TitaniumBot,
-    ctx: commands.Context["TitaniumBot"] | Message | Member,
-) -> Embed:
-    return Embed(
-        title=f"{bot.success_emoji} Unbanned",
-        description=f"A moderator has unbanned you from **{ctx.guild.name if ctx.guild else ''}!**",
-        colour=Colour.green(),
-    )
-
-
 def jump_button(guild: Guild) -> Button:
     string = f"Sent from {guild.name}"
 

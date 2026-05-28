@@ -11,10 +11,10 @@ from sqlalchemy.orm import selectinload
 
 from lib.classes.guild_logger import GuildLogger
 from lib.duration import DurationConverter, duration_to_timestring
-from lib.embeds.dm_notifs import banned_dm, kicked_dm, muted_dm, unbanned_dm, unmuted_dm, warned_dm
+from lib.embeds.dm_notifs import banned_dm, kicked_dm, muted_dm, unmuted_dm, warned_dm
 from lib.enums.moderation import CaseSource, CaseType
 from lib.enums.scheduled_events import EventType
-from lib.helpers.cache import get_or_fetch_member
+from lib.helpers.cache import get_or_fetch_member, get_or_fetch_user
 from lib.helpers.dm import send_dm
 from lib.helpers.log_error import log_error
 from lib.sql.sql import ModCase, ScheduledTask
@@ -195,7 +195,7 @@ class GuildModCaseManager:
             try:
                 result = await get_or_fetch_member(self.bot, self.guild, user.id)
                 if not result:
-                    raise Exception("Impossible: member not found")
+                    raise RuntimeError("Impossible: member not found")
 
                 user = result
             except Exception as e:
@@ -328,7 +328,7 @@ class GuildModCaseManager:
             try:
                 result = await get_or_fetch_member(self.bot, self.guild, case.user_id)
                 if not result:
-                    raise Exception("Impossible: member not found")
+                    raise RuntimeError("Impossible: member not found")
 
                 member = result
             except Exception as e:
@@ -355,40 +355,28 @@ class GuildModCaseManager:
                     dm_success=dm_success,
                     dm_error=dm_error,
                 )
+
+            return case, dm_success, dm_error
         elif case.type == CaseType.BAN:
             try:
-                result = await get_or_fetch_member(self.bot, self.guild, case.user_id)
+                result = await get_or_fetch_user(self.bot, case.user_id)
                 if not result:
-                    raise Exception("Impossible: member not found")
-
-                member = result
+                    raise RuntimeError("Impossible: user not found")
             except Exception as e:
-                self.logger.error(
-                    f"Failed to fetch user {case.user_id} for DM notification", exc_info=e
-                )
-                return case, False, "Failed to fetch member for DM notification"
-
-            # FIXME: DM can't be sent if user isn't in server
-            embed = unbanned_dm(self.bot, member)
-            dm_success, dm_error = await send_dm(
-                bot=self.bot,
-                embed=embed,
-                user=member,
-                source_guild=self.guild,
-                module="Moderation",
-            )
+                self.logger.error(f"Failed to fetch user {case.user_id} for logging", exc_info=e)
+                return case, False, "Failed to fetch user for logging"
 
             if self.bot.user:
                 guild_logger = GuildLogger(self.bot, self.guild)
                 await guild_logger.titanium_unban(
                     creator=self.bot.user,
-                    target=member,
+                    target=result,
                     case=case,
-                    dm_success=dm_success,
-                    dm_error=dm_error,
                 )
 
-        return case, dm_success, dm_error
+            return case, True, ""
+        else:
+            raise ValueError("Unsupported case type")
 
     async def delete_case(self, case_id: str) -> None:
         case = await self.get_case_by_id(case_id)

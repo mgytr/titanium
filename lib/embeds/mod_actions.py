@@ -173,8 +173,6 @@ def unbanned(
     user: Member | User,
     creator: Member | User | ClientUser,
     case: ModCase | None,
-    dm_success: bool,
-    dm_error: str,
     log: bool = False,
 ) -> Embed:
     embed = Embed(
@@ -182,15 +180,7 @@ def unbanned(
         description=f"**Target:** @{user.name} (`{user.id}`){f'\n**Original Reason:** {case.description or "No reason provided."}' if case else ''}",
         colour=Colour.green(),
     )
-
     embed.set_footer(text=f"@{creator.name}", icon_url=creator.display_avatar.url)
-
-    if not dm_success:
-        embed.add_field(
-            name="Errors",
-            value=f"Failed to send DM: {dm_error}",
-            inline=False,
-        )
 
     return embed
 

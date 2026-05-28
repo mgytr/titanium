@@ -1008,12 +1008,9 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
         view.interaction = interaction
 
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        await view.wait()
+        timed_out = await view.wait()
 
-        if not view.interaction:
-            raise Exception("Impossible: interaction is missing")
-
-        if not view.value:
+        if timed_out or not view.value:
             await view.interaction.edit_original_response(embed=cancelled(self.bot), view=None)
             return
 
@@ -1085,12 +1082,9 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
         view.interaction = interaction
 
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        await view.wait()
+        timed_out = await view.wait()
 
-        if not view.interaction:
-            raise Exception("Impossible: interaction is missing")
-
-        if not view.value:
+        if timed_out or not view.value:
             await view.interaction.edit_original_response(embed=cancelled(self.bot), view=None)
             return
 

@@ -27,7 +27,6 @@ class ModMonitorCog(commands.Cog):
         if entry.user_id == self.bot.user.id:
             return
 
-        # FIXME: entry.target can be discord.Object
         if entry.action == discord.AuditLogAction.member_update:
             if (
                 not entry.target

@@ -2819,8 +2819,6 @@ class GuildLogger:
         creator: discord.User | discord.Member | discord.ClientUser,
         target: discord.User | discord.Member,
         case: ModCase,
-        dm_success: bool,
-        dm_error: str,
     ) -> None:
         await self._ensure_config()
         if not self._exists_and_enabled("titanium_unban"):
@@ -2829,7 +2827,7 @@ class GuildLogger:
         assert self.config is not None and self.config.logging_settings is not None
         await self._send_to_webhook(
             await self._find_webhook(self.config.logging_settings.channels.get("titanium_unban")),
-            unbanned(self.bot, target, creator, case, dm_success, dm_error, log=True),
+            unbanned(self.bot, target, creator, case, log=True),
         )
 
     async def titanium_case_comment(

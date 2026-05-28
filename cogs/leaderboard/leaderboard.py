@@ -425,7 +425,6 @@ class LeaderboardCog(commands.Cog):
 
             await ctx.reply(embed=embed)
 
-    # TODO: test permissions
     @commands.hybrid_group(name="xp", description="Set, add and remove XP from users.")
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
@@ -434,6 +433,7 @@ class LeaderboardCog(commands.Cog):
 
     @xp_group.command(name="set", description="Set the XP of a user.")
     @global_alias("setxp")
+    @commands.has_permissions(manage_guild=True)
     @commands.cooldown(1, 3)
     async def set_xp(
         self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
@@ -492,6 +492,7 @@ class LeaderboardCog(commands.Cog):
 
     @xp_group.command(name="add", description="Add XP to a user.")
     @global_alias("addxp")
+    @commands.has_permissions(manage_guild=True)
     @commands.cooldown(1, 3)
     async def add_xp(
         self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
@@ -555,6 +556,7 @@ class LeaderboardCog(commands.Cog):
     @xp_group.command(name="remove", aliases=["deduct"], description="Remove XP from a user.")
     @global_alias("removexp")
     @global_alias("deductxp")
+    @commands.has_permissions(manage_guild=True)
     @commands.cooldown(1, 3)
     async def remove_xp(
         self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int

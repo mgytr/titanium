@@ -504,10 +504,10 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
         await ctx.defer(ephemeral=ephemeral)
 
         if isinstance(ctx.author, discord.User):
-            raise Exception("Impossible: author is a user")
+            raise RuntimeError("Impossible: author is a user")
 
         if isinstance(ctx.me, discord.ClientUser):
-            raise Exception("Impossible: bot is a user")
+            raise RuntimeError("Impossible: bot is a user")
 
         if not channel:
             if not isinstance(ctx.channel, discord.abc.GuildChannel):

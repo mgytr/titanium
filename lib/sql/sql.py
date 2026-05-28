@@ -276,7 +276,7 @@ class ModCaseComment(Base):
         String(length=8), ForeignKey("mod_cases.id", ondelete="CASCADE")
     )
     user_id: Mapped[int] = MappedColumn(BigInteger)
-    comment: Mapped[str] = MappedColumn(String(length=512))
+    comment: Mapped[str] = MappedColumn(String(length=500))
     time_created: Mapped[datetime] = MappedColumn(
         DateTime(timezone=True), server_default=text("NOW()")
     )
@@ -837,7 +837,7 @@ async def init_db():
         )
 
         if await result.wait() != 0:
-            raise Exception("Database migration failed")
+            raise RuntimeError("Database migration failed")
 
         logger.info("Database migrations applied successfully")
 

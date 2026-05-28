@@ -15,8 +15,6 @@ from lib.views.pagination import PaginationView
 if TYPE_CHECKING:
     from main import TitaniumBot
 
-# FIXME: handle confirmation view expiring
-
 
 class TagOptionView(discord.ui.View):
     def __init__(self, bot: TitaniumBot, timeout: float = 60.0, ephemeral: bool = False):
@@ -272,12 +270,12 @@ class TagCommandsCog(commands.Cog):
 
             view = TagOptionView(self.bot)
             await ctx.reply(embed=embed, view=view)
-            await view.wait()
+            timed_out = await view.wait()
 
             if not view.interaction:
-                raise Exception("Impossible: interaction is missing")
+                raise RuntimeError("Impossible: interaction is missing")
 
-            if view.value is None:
+            if timed_out or view.value is None:
                 return await view.interaction.edit_original_response(
                     embed=cancelled(self.bot), view=None
                 )

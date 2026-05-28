@@ -148,7 +148,7 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
                 else None
             )
             if not config:
-                raise Exception("Failed to get guild config")
+                raise RuntimeError("Failed to get guild config")
 
             if not config.moderation_enabled:
                 embed = discord.Embed(

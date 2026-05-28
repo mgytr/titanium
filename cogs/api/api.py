@@ -27,6 +27,7 @@ from lib.api.validators import (
     AutomodConfigModel,
     AutomodRuleModel,
     BouncerConfigModel,
+    CaseComment,
     ConfessionsConfigModel,
     FireboardConfigModel,
     GuildPermissionsModel,
@@ -96,6 +97,21 @@ class APICog(commands.Cog):
     async def cog_load(self) -> None:
         self.logger.info(f"Starting API server on {self.host}:{self.port}")
         self.server_task = asyncio.create_task(self.start_server())
+
+    def __format_validation_error(self, e: ValidationError) -> dict:
+        error_details = []
+        for error in e.errors():
+            error_dict = {
+                "type": error["type"],
+                "loc": error["loc"],
+                "msg": error["msg"],
+                "input": str(error.get("input", "")),
+            }
+            if "ctx" in error:
+                error_dict["ctx"] = {k: str(v) for k, v in error["ctx"].items()}
+            error_details.append(error_dict)
+
+        return {"error": "Validation failed", "details": error_details}
 
     @web.middleware
     async def auth_middleware(self, request: web.Request, handler) -> web.Response:
@@ -665,7 +681,6 @@ class APICog(commands.Cog):
 
         return web.json_response({"total_count": total_count, "comments": comments_list})
 
-    # TODO: validate comments server side
     async def guild_case_add_comment(self, request: web.Request) -> web.Response:
         guild_id = request.match_info.get("guild_id")
         if not guild_id or not guild_id.isdigit():
@@ -686,8 +701,15 @@ class APICog(commands.Cog):
         if not config.moderation_enabled:
             return web.json_response({"error": "moderation is disabled in this server"}, status=403)
 
-        body: dict = await request.json()
-        member = await get_or_fetch_member(bot=self.bot, guild=guild, user_id=int(body["user"]))
+        try:
+            data: dict = await request.json()
+            validated_tag = CaseComment(**data)
+        except ValidationError as e:
+            return web.json_response(self.__format_validation_error(e), status=400)
+
+        member = await get_or_fetch_member(
+            bot=self.bot, guild=guild, user_id=int(validated_tag.user)
+        )
 
         if not member:
             return web.json_response({"error": "creator not found"}, status=404)
@@ -701,7 +723,7 @@ class APICog(commands.Cog):
                 return web.json_response({"error": "case not found"}, status=404)
 
             comment = await case.add_comment(
-                member=member, content=str(body["content"]), bot=self.bot, guild=guild
+                member=member, content=validated_tag.comment, bot=self.bot, guild=guild
             )
 
         return web.json_response({"id": str(comment.id)})
@@ -833,8 +855,11 @@ class APICog(commands.Cog):
         if not guild_id or not guild_id.isdigit():
             return web.json_response({"error": "guild_id required"}, status=400)
 
-        data = await request.json()
-        validated_tag = TagModel(**data)
+        try:
+            data = await request.json()
+            validated_tag = TagModel(**data)
+        except ValidationError as e:
+            return web.json_response(self.__format_validation_error(e), status=400)
 
         guild = self.bot.get_guild(int(guild_id))
         if not guild:
@@ -847,8 +872,7 @@ class APICog(commands.Cog):
         if not config.tags_enabled:
             return web.json_response({"error": "tags are disabled in this server"}, status=403)
 
-        # TODO: remove the +1
-        if config.limits.enforcing and len(config.tag_settings.tags) + 1 > config.limits.tags:
+        if config.limits.enforcing and len(config.tag_settings.tags) >= config.limits.tags:
             return web.json_response(
                 {
                     "error": "Limit exceeded",
@@ -895,8 +919,11 @@ class APICog(commands.Cog):
         if not tag_id:
             return web.json_response({"error": "tag_id required"}, status=400)
 
-        data = await request.json()
-        validated_tag = TagModel(**data)
+        try:
+            data = await request.json()
+            validated_tag = TagModel(**data)
+        except ValidationError as e:
+            return web.json_response(self.__format_validation_error(e), status=400)
 
         guild = self.bot.get_guild(int(guild_id))
         if not guild:
@@ -1080,9 +1107,7 @@ class APICog(commands.Cog):
             data = await request.json()
             validated_perms = GuildPermissionsModel(**data)
         except ValidationError as e:
-            return web.json_response(
-                {"error": "Validation failed", "details": e.errors()}, status=400
-            )
+            return web.json_response(self.__format_validation_error(e), status=400)
         except ValueError as e:
             return web.json_response({"error": "Invalid data", "message": str(e)}, status=400)
 
@@ -1246,9 +1271,7 @@ class APICog(commands.Cog):
             data = await request.json()
             validated_settings = GuildSettingsModel(**data)
         except ValidationError as e:
-            return web.json_response(
-                {"error": "Validation failed", "details": e.errors()}, status=400
-            )
+            return web.json_response(self.__format_validation_error(e), status=400)
         except ValueError as e:
             return web.json_response({"error": "Invalid data", "message": str(e)}, status=400)
 
@@ -1381,21 +1404,7 @@ class APICog(commands.Cog):
             elif module_name == "tags":
                 validated_config = TagsConfigModel(**data)
         except ValidationError as e:
-            error_details = []
-            for error in e.errors():
-                error_dict = {
-                    "type": error["type"],
-                    "loc": error["loc"],
-                    "msg": error["msg"],
-                    "input": str(error.get("input", "")),
-                }
-                if "ctx" in error:
-                    error_dict["ctx"] = {k: str(v) for k, v in error["ctx"].items()}
-                error_details.append(error_dict)
-
-            return web.json_response(
-                {"error": "Validation failed", "details": error_details}, status=400
-            )
+            return web.json_response(self.__format_validation_error(e), status=400)
         except ValueError as e:
             return web.json_response({"error": "Invalid data", "message": str(e)}, status=400)
 

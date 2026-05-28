@@ -75,6 +75,14 @@ class ModerationConfigModel(BaseModel):
     ban_days: int = Field(0, ge=0, le=7)
 
 
+class CaseComment(BaseModel):
+    user: str
+    comment: Annotated[
+        str,
+        StringConstraints(min_length=1, max_length=500, strip_whitespace=True),
+    ]
+
+
 class AutomodActionModel(BaseModel):
     type: AutomodActionType
 

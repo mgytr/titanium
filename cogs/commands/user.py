@@ -133,14 +133,13 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
         view = View().add_item(Button(label="Open in Browser", style=ButtonStyle.link, url=url))
         await ctx.reply(embed=embed, view=view)
 
-    # TODO: check that guild_only and allowed installs are not clashing
     @commands.hybrid_command(
         name="server-pfp",
         aliases=["serverpfp", "guildpfp", "guild-pfp"],
         description="Get a user's server profile picture.",
     )
-    @commands.guild_only()
     @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @app_commands.describe(user="Optional: the user to get the PFP of. Defaults to yourself.")
     @commands.cooldown(1, 3)
     async def server_pfp(
@@ -152,7 +151,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
             user = ctx.author if isinstance(ctx.author, Member) else None
 
         if not user:
-            raise Exception("Impossible: member object not returned")
+            raise RuntimeError("Impossible: member object not returned")
 
         embed = Embed(colour=user.accent_colour)
         embed.set_author(

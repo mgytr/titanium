@@ -8,7 +8,7 @@ from discord.ext import commands
 import lib.embeds.mod_actions as mod_embeds
 from lib.classes.case_manager import GuildModCaseManager
 from lib.duration import DurationConverter
-from lib.embeds.dm_notifs import unbanned_dm, unmuted_dm
+from lib.embeds.dm_notifs import unmuted_dm
 from lib.embeds.general import not_in_guild
 from lib.enums.moderation import CaseType
 from lib.helpers.dm import send_dm
@@ -900,21 +900,9 @@ class ModerationBasicCog(
                     cases = await manager.get_cases_by_user(user.id)
 
                     case = next((c for c in cases if c.type == CaseType.BAN), None)
-
                     if case:
                         # Close case
                         case, dm_success, dm_error = await manager.close_case(case.id)
-                    else:
-                        # Just send DM
-                        # FIXME: DM can't be sent if user isn't in server
-                        embed = unbanned_dm(self.bot, ctx)
-                        dm_success, dm_error = await send_dm(
-                            bot=self.bot,
-                            embed=embed,
-                            user=user,
-                            source_guild=ctx.guild,
-                            module="Moderation",
-                        )
 
                 # Send confirmation message
                 await ctx.reply(
@@ -924,8 +912,6 @@ class ModerationBasicCog(
                         user=user,
                         creator=ctx.author,
                         case=case,
-                        dm_success=dm_success,
-                        dm_error=dm_error,
                     ),
                     **del_kwargs,
                 )
