@@ -2,6 +2,8 @@
 
 Welcome to Titanium's main code repo! Titanium is your multipurpose, open source Discord bot.
 
+[Add Titanium Now!](https://titaniumbot.me/invite) (you will agree to the [Privacy Policy](https://titaniumbot.me/privacy/bot) and [Terms of Use policy](https://titaniumbot.me/terms))
+
 Titanium v2 includes many features designed to improve your Discord experience, such as:
 
 - complete rewrite of Titanium v1 to include better code and SQLAlchemy ORM
@@ -22,6 +24,12 @@ Titanium v2 includes many features designed to improve your Discord experience, 
 
 > [!CAUTION]
 > You will need to run a PostgreSQL server to run the bot. Additionally, Titanium v2 is only tested to run on macOS and Linux. Windows support is untested, and may have unexpected issues.
+
+## Licence
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License in the [licence file](/LICENSE) for more details.
 
 ## Database Setup
 
