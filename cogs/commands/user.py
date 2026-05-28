@@ -140,6 +140,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
+    @commands.guild_only()
     @app_commands.describe(user="Optional: the user to get the PFP of. Defaults to yourself.")
     @commands.cooldown(1, 3)
     async def server_pfp(

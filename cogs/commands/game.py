@@ -97,7 +97,9 @@ class GameCog(commands.Cog, name="Games", description="Play various simple games
         embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)
         await ctx.reply(embed=embed)
 
-    @game_group.command(name="coin-flip", description="Flip a coin and guess the side.")
+    @game_group.command(
+        name="coin-flip", aliases=["coinflip"], description="Flip a coin and guess the side."
+    )
     @app_commands.describe(choice="Your guess between heads and tails.")
     @app_commands.choices(
         choice=[

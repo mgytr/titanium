@@ -248,6 +248,8 @@ class LeaderboardCog(commands.Cog):
 
     # Leaderboard command
     @commands.hybrid_command(name="leaderboard", aliases=["lb", "top"])
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @commands.guild_only()
     @commands.cooldown(1, 5)
     async def leaderboard_command(self, ctx: commands.Context["TitaniumBot"]):
@@ -330,6 +332,8 @@ class LeaderboardCog(commands.Cog):
 
     # Level command
     @commands.hybrid_command(name="level", aliases=["lvl"])
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @commands.guild_only()
     @app_commands.describe(
         member="Optional: the user to get the XP info from. Defaults to yourself."
@@ -426,6 +430,8 @@ class LeaderboardCog(commands.Cog):
             await ctx.reply(embed=embed)
 
     @commands.hybrid_group(name="xp", description="Set, add and remove XP from users.")
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @commands.guild_only()
     @commands.has_permissions(manage_guild=True)
     async def xp_group(self, ctx: commands.Context["TitaniumBot"]) -> None:

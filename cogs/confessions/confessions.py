@@ -23,6 +23,8 @@ class ConfessionCog(commands.Cog, name="Confession", description="Anonymous mess
         raise SlashCommandOnly
 
     @app_commands.command(name="confession", description="Send an anonymous confession.")
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @app_commands.guild_only()
     @app_commands.describe(
         message="Your message to include in the confession.",

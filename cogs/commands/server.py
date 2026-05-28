@@ -26,6 +26,8 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
 
     @commands.hybrid_group(name="server", description="Get information about the server.")
     @commands.guild_only()
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def server_group(self, ctx: commands.Context["TitaniumBot"]) -> None:
         await ctx.defer()
 
@@ -488,7 +490,6 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
         aliases=["firstmessage"],
         description="Get the first message in a channel, uses current channel by default.",
     )
-    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @commands.guild_only()
     @app_commands.describe(
         channel="Optional: the target channel. Defaults to the current channel.",
@@ -537,6 +538,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
             embed = discord.Embed(
                 title=f"{self.bot.error_emoji} Not Allowed",
                 description="You do not have permissions to read the message history of the selected channel.",
+                colour=Colour.red(),
             )
             await ctx.reply(embed=embed, ephemeral=ephemeral)
             return
@@ -545,6 +547,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
             embed = discord.Embed(
                 title=f"{self.bot.error_emoji} Not Allowed",
                 description="Titanium does not have permission to read the message history of the selected channel.",
+                colour=Colour.red(),
             )
             await ctx.reply(embed=embed, ephemeral=ephemeral)
             return

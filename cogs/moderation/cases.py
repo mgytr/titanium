@@ -6,7 +6,7 @@ from discord.ui import Button, View
 
 import lib.embeds.cases as case_embeds
 from lib.classes.case_manager import CaseNotFoundException, GuildModCaseManager
-from lib.embeds.general import cancelled, guild_only, please_wait
+from lib.embeds.general import cancelled, guild_only
 from lib.helpers.global_alias import add_global_aliases, global_alias, remove_global_aliases
 from lib.helpers.hybrid import _defer, _stop_loading, defer
 from lib.sql.sql import ModCase, get_session
@@ -70,6 +70,8 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     @commands.hybrid_command(
         name="cases", aliases=["warns", "strikes"], description="View your moderation cases."
     )
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @commands.guild_only()
     @app_commands.describe(
         user="The user to search for. You can only search for other users if you have a moderation permission."
@@ -152,6 +154,8 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     @commands.hybrid_group(
         name="case", fallback="view", description="View and manage moderation cases."
     )
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @commands.guild_only()
     @commands.check_any(
         commands.has_permissions(kick_members=True),

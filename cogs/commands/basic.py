@@ -171,6 +171,8 @@ class BasicCommandsCog(
         name="prefixes", aliases=["prefix"], description="Get the bot's command prefixes."
     )
     @commands.guild_only()
+    @app_commands.allowed_installs(guilds=True, users=False)
+    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     async def prefixes(self, ctx: commands.Context["TitaniumBot"]) -> None:
         if (
             not ctx.guild

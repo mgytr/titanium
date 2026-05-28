@@ -101,8 +101,6 @@ class HelpCommandCog(commands.Cog):
         await ctx.reply(embed=embed, ephemeral=True)
 
     @help_group.command(name="commands", description="Get a list of all Titanium commands.")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     async def all_commands(self, ctx: commands.Context["TitaniumBot"]) -> None:
         await ctx.defer()
 
