@@ -581,36 +581,6 @@ class ModerationBasicCog(
                 # Add member to punishing list
                 self.bot.punishing.setdefault(ctx.guild.id, []).append(member.id)
 
-                # Kick user
-                try:
-                    await member.kick(reason=f"@{ctx.author.name}: {reason}")
-                except discord.Forbidden as e:
-                    await log_error(
-                        bot=self.bot,
-                        module="Moderation",
-                        guild_id=member.guild.id,
-                        error=f"Titanium was not allowed to kick @{member.name} ({member.id})",
-                        details=e.text,
-                    )
-
-                    return await ctx.reply(
-                        ephemeral=True, embed=mod_embeds.forbidden(self.bot, member), **del_kwargs
-                    )
-                except discord.HTTPException as e:
-                    await log_error(
-                        bot=self.bot,
-                        module="Moderation",
-                        guild_id=member.guild.id,
-                        error=f"Unknown Discord error while kicking @{member.name} ({member.id})",
-                        details=e.text,
-                    )
-
-                    return await ctx.reply(
-                        ephemeral=True,
-                        embed=mod_embeds.http_exception(self.bot, member),
-                        **del_kwargs,
-                    )
-
                 # Create case
                 async with get_session() as session:
                     manager = GuildModCaseManager(self.bot, ctx.guild, session)
@@ -621,6 +591,43 @@ class ModerationBasicCog(
                         creator_user=ctx.author,
                         reason=reason,
                     )
+
+                    # Kick user
+                    try:
+                        await member.kick(reason=f"@{ctx.author.name}: {reason}")
+                    except discord.Forbidden as e:
+                        await log_error(
+                            bot=self.bot,
+                            module="Moderation",
+                            guild_id=member.guild.id,
+                            error=f"Titanium was not allowed to kick @{member.name} ({member.id})",
+                            details=e.text,
+                        )
+                        await manager.delete_case(case.id)
+
+                        return await ctx.reply(
+                            ephemeral=True,
+                            embed=mod_embeds.forbidden(self.bot, member),
+                            **del_kwargs,
+                        )
+                    except discord.HTTPException as e:
+                        await log_error(
+                            bot=self.bot,
+                            module="Moderation",
+                            guild_id=member.guild.id,
+                            error=f"Unknown Discord error while kicking @{member.name} ({member.id})",
+                            details=e.text,
+                        )
+                        await manager.delete_case(case.id)
+
+                        return await ctx.reply(
+                            ephemeral=True,
+                            embed=mod_embeds.http_exception(self.bot, member),
+                            **del_kwargs,
+                        )
+                    except Exception as e:
+                        await manager.delete_case(case.id)
+                        raise e
 
                 # Send confirmation message
                 await ctx.reply(
@@ -741,42 +748,6 @@ class ModerationBasicCog(
                 # Get config
                 config = await self.bot.fetch_guild_config(ctx.guild.id)
 
-                # Ban user
-                try:
-                    await ctx.guild.ban(
-                        user=user,
-                        reason=f"@{ctx.author.name}: {processed_reason}",
-                        delete_message_seconds=config.moderation_settings.ban_days * 86400
-                        if config
-                        else 0,
-                    )
-                except discord.Forbidden as e:
-                    await log_error(
-                        bot=self.bot,
-                        module="Moderation",
-                        guild_id=ctx.guild.id,
-                        error=f"Titanium was not allowed to ban @{user.name} ({user.id})",
-                        details=e.text,
-                    )
-
-                    return await ctx.reply(
-                        ephemeral=True, embed=mod_embeds.forbidden(self.bot, user), **del_kwargs
-                    )
-                except discord.HTTPException as e:
-                    await log_error(
-                        bot=self.bot,
-                        module="Moderation",
-                        guild_id=ctx.guild.id,
-                        error=f"Unknown Discord error while banning @{user.name} ({user.id})",
-                        details=e.text,
-                    )
-
-                    return await ctx.reply(
-                        ephemeral=True,
-                        embed=mod_embeds.http_exception(self.bot, user),
-                        **del_kwargs,
-                    )
-
                 # Create case
                 async with get_session() as session:
                     manager = GuildModCaseManager(self.bot, ctx.guild, session)
@@ -788,6 +759,47 @@ class ModerationBasicCog(
                         reason=processed_reason,
                         duration=processed_duration,
                     )
+
+                    # Ban user
+                    try:
+                        await ctx.guild.ban(
+                            user=user,
+                            reason=f"@{ctx.author.name}: {processed_reason}",
+                            delete_message_seconds=config.moderation_settings.ban_days * 86400
+                            if config
+                            else 0,
+                        )
+                    except discord.Forbidden as e:
+                        await log_error(
+                            bot=self.bot,
+                            module="Moderation",
+                            guild_id=ctx.guild.id,
+                            error=f"Titanium was not allowed to ban @{user.name} ({user.id})",
+                            details=e.text,
+                        )
+                        await manager.delete_case(case.id)
+
+                        return await ctx.reply(
+                            ephemeral=True, embed=mod_embeds.forbidden(self.bot, user), **del_kwargs
+                        )
+                    except discord.HTTPException as e:
+                        await log_error(
+                            bot=self.bot,
+                            module="Moderation",
+                            guild_id=ctx.guild.id,
+                            error=f"Unknown Discord error while banning @{user.name} ({user.id})",
+                            details=e.text,
+                        )
+                        await manager.delete_case(case.id)
+
+                        return await ctx.reply(
+                            ephemeral=True,
+                            embed=mod_embeds.http_exception(self.bot, user),
+                            **del_kwargs,
+                        )
+                    except Exception as e:
+                        await manager.delete_case(case.id)
+                        raise e
 
                 # Send confirmation message
                 await ctx.reply(

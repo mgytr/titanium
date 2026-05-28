@@ -11,7 +11,7 @@ from lib.classes.guild_logger import GuildLogger
 from lib.enums.bouncer import BouncerActionType, BouncerCriteriaType, BouncerEventType
 from lib.enums.moderation import CaseSource, CaseType
 from lib.helpers.log_error import log_error
-from lib.sql.sql import BouncerAction, BouncerRule, get_session
+from lib.sql.sql import BouncerAction, BouncerRule, ModCase, get_session
 
 if TYPE_CHECKING:
     from main import TitaniumBot
@@ -296,17 +296,17 @@ class BouncerMonitorCog(commands.Cog):
                     and BouncerActionType.BAN not in punishment_types
                 ):
                     # Kick user
+                    case: ModCase
                     try:
-                        await member.kick(
-                            reason=f"Bouncer: {punishment.reason}",
-                        )
-
-                        await manager.create_case(
+                        case, dm_success, dm_error = await manager.create_case(
                             action=CaseType.KICK,
                             user=member,
                             creator_user=self.bot.user,
                             reason=f"Bouncer: {punishment.reason}",
                             source=CaseSource.BOUNCER,
+                        )
+                        await member.kick(
+                            reason=f"Bouncer: {punishment.reason}",
                         )
                     except discord.Forbidden as e:
                         await log_error(
@@ -316,6 +316,9 @@ class BouncerMonitorCog(commands.Cog):
                             error=f"Titanium was not allowed to kick {member.name} ({member.id})",
                             details=e.text,
                         )
+
+                        if case:
+                            await manager.delete_case(case.id)
                     except discord.HTTPException as e:
                         await log_error(
                             bot=self.bot,
@@ -324,15 +327,18 @@ class BouncerMonitorCog(commands.Cog):
                             error=f"Unknown Discord error while kicking {member.name} ({member.id})",
                             details=e.text,
                         )
+
+                        if case:
+                            await manager.delete_case(case.id)
+                    except Exception as e:
+                        if case:
+                            await manager.delete_case(case.id)
+                        raise e
                 elif punishment.action_type == BouncerActionType.BAN:
                     # Ban user
+                    case: ModCase
                     try:
-                        await member.ban(
-                            reason=f"Bouncer: {punishment.reason}",
-                            delete_message_seconds=config.moderation_settings.ban_days * 86400,
-                        )
-
-                        await manager.create_case(
+                        case, dm_success, dm_error = await manager.create_case(
                             action=CaseType.BAN,
                             user=member,
                             creator_user=self.bot.user,
@@ -344,6 +350,10 @@ class BouncerMonitorCog(commands.Cog):
                             ),
                             source=CaseSource.BOUNCER,
                         )
+                        await member.ban(
+                            reason=f"Bouncer: {punishment.reason}",
+                            delete_message_seconds=config.moderation_settings.ban_days * 86400,
+                        )
                     except discord.Forbidden as e:
                         await log_error(
                             bot=self.bot,
@@ -352,6 +362,9 @@ class BouncerMonitorCog(commands.Cog):
                             error=f"Titanium was not allowed to ban {member.name} ({member.id})",
                             details=e.text,
                         )
+
+                        if case:
+                            await manager.delete_case(case.id)
                     except discord.HTTPException as e:
                         await log_error(
                             bot=self.bot,
@@ -360,6 +373,13 @@ class BouncerMonitorCog(commands.Cog):
                             error=f"Unknown Discord error while banning {member.name} ({member.id})",
                             details=e.text,
                         )
+
+                        if case:
+                            await manager.delete_case(case.id)
+                    except Exception as e:
+                        if case:
+                            await manager.delete_case(case.id)
+                        raise e
                 else:
                     await log_error(
                         bot=self.bot,

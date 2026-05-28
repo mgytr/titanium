@@ -14,7 +14,7 @@ from lib.classes.guild_logger import GuildLogger
 from lib.enums.automod import AutomodActionType, AutomodAntispamType
 from lib.enums.moderation import CaseSource, CaseType
 from lib.helpers.log_error import log_error
-from lib.sql.sql import AutomodAction, AutomodRule, get_session
+from lib.sql.sql import AutomodAction, AutomodRule, ModCase, get_session
 
 if TYPE_CHECKING:
     from main import TitaniumBot
@@ -479,12 +479,11 @@ class AutomodMonitorCog(commands.Cog):
                         and AutomodActionType.BAN not in punishment_types
                     ):
                         self.logger.debug(f"Processing kick action for user {message.author.id}")
+
                         # Kick user
+                        case: ModCase
                         try:
                             self.logger.debug(f"Kicking user {message.author.id}")
-                            await message.author.kick(
-                                reason=f"{punishment.reason if punishment.reason else 'No reason provided'}",
-                            )
 
                             case, dm_success, dm_error = await manager.create_case(
                                 action=CaseType.KICK,
@@ -492,6 +491,9 @@ class AutomodMonitorCog(commands.Cog):
                                 creator_user=self.bot.user,
                                 reason=f"{punishment.reason if punishment.reason else 'No reason provided'}",
                                 source=CaseSource.AUTOMOD,
+                            )
+                            await message.author.kick(
+                                reason=f"{punishment.reason if punishment.reason else 'No reason provided'}",
                             )
 
                             embeds.append(
@@ -513,6 +515,9 @@ class AutomodMonitorCog(commands.Cog):
                                 details=e.text,
                             )
                             embeds.append(mod_embeds.forbidden(self.bot, message.author))
+
+                            if case:
+                                await manager.delete_case(case.id)
                         except discord.HTTPException as e:
                             await log_error(
                                 bot=self.bot,
@@ -522,15 +527,20 @@ class AutomodMonitorCog(commands.Cog):
                                 details=e.text,
                             )
                             embeds.append(mod_embeds.http_exception(self.bot, message.author))
+
+                            if case:
+                                await manager.delete_case(case.id)
+                        except Exception as e:
+                            if case:
+                                await manager.delete_case(case.id)
+                            raise e
                     elif punishment.action_type == AutomodActionType.BAN:
                         self.logger.debug(f"Processing ban action for user {message.author.id}")
+
                         # Ban user
+                        case: ModCase
                         try:
                             self.logger.debug(f"Banning user {message.author.id}")
-                            await message.author.ban(
-                                reason=f"{punishment.reason if punishment.reason else 'No reason provided'}",
-                                delete_message_seconds=config.moderation_settings.ban_days * 86400,
-                            )
 
                             case, dm_success, dm_error = await manager.create_case(
                                 action=CaseType.BAN,
@@ -543,6 +553,10 @@ class AutomodMonitorCog(commands.Cog):
                                     else None
                                 ),
                                 source=CaseSource.AUTOMOD,
+                            )
+                            await message.author.ban(
+                                reason=f"{punishment.reason if punishment.reason else 'No reason provided'}",
+                                delete_message_seconds=config.moderation_settings.ban_days * 86400,
                             )
 
                             embeds.append(
@@ -564,6 +578,9 @@ class AutomodMonitorCog(commands.Cog):
                                 details=e.text,
                             )
                             embeds.append(mod_embeds.forbidden(self.bot, message.author))
+
+                            if case:
+                                await manager.delete_case(case.id)
                         except discord.HTTPException as e:
                             await log_error(
                                 bot=self.bot,
@@ -573,6 +590,13 @@ class AutomodMonitorCog(commands.Cog):
                                 details=e.text,
                             )
                             embeds.append(mod_embeds.http_exception(self.bot, message.author))
+
+                            if case:
+                                await manager.delete_case(case.id)
+                        except Exception as e:
+                            if case:
+                                await manager.delete_case(case.id)
+                            raise e
                     else:
                         await log_error(
                             bot=self.bot,
