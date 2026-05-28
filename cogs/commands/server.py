@@ -494,7 +494,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
         channel="Optional: the target channel. Defaults to the current channel.",
         ephemeral="Optional: whether to send the command output as a dismissable message only visible to you. Defaults to true.",
     )
-    @app_commands.checks.cooldown(1, 5)
+    @commands.cooldown(1, 5)
     async def first_message(
         self,
         ctx: commands.Context["TitaniumBot"],

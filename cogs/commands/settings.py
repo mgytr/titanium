@@ -975,7 +975,7 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
 
     @app_commands.command(
         name="opt-out",
-        description="Opt out of optional data collection, and delete optional data stored on Titanium systems.",
+        description="Opt out of optional data collection, and delete optional data stored in Titanium's systems.",
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)

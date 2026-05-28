@@ -133,6 +133,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
         view = View().add_item(Button(label="Open in Browser", style=ButtonStyle.link, url=url))
         await ctx.reply(embed=embed, view=view)
 
+    # TODO: check that guild_only and allowed installs are not clashing
     @commands.hybrid_command(
         name="server-pfp",
         aliases=["serverpfp", "guildpfp", "guild-pfp"],

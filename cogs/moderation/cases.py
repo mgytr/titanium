@@ -158,7 +158,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
         commands.has_permissions(ban_members=True),
         commands.has_permissions(moderate_members=True),
     )
-    @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
+    @app_commands.default_permissions(moderate_members=True)
     @app_commands.describe(case_id="The case ID to search for.")
     @commands.cooldown(1, 3)
     async def case_group(
@@ -213,7 +213,6 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
         commands.has_permissions(ban_members=True),
         commands.has_permissions(moderate_members=True),
     )
-    @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
     @app_commands.describe(case_id="The case ID to search for.")
     @commands.cooldown(1, 3)
     async def case_comments(
@@ -258,7 +257,6 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
         commands.has_permissions(ban_members=True),
         commands.has_permissions(moderate_members=True),
     )
-    @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
     @app_commands.describe(
         case_id="The case ID to add a comment to.", comment="The comment to add."
     )

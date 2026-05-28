@@ -335,7 +335,6 @@ class TagCommandsCog(commands.Cog):
     @tags_group.command(
         name="list", aliases=["viewall"], description="View a list of all server or user tags."
     )
-    @commands.cooldown(1, 5)
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(mode="Whether to view server or user tags.")
@@ -345,6 +344,7 @@ class TagCommandsCog(commands.Cog):
             app_commands.Choice(name="User Tag", value="user"),
         ]
     )
+    @commands.cooldown(1, 5)
     async def view_all_tags(
         self, ctx: commands.Context["TitaniumBot"], mode: Literal["server", "user"] = "user"
     ):

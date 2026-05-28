@@ -688,6 +688,7 @@ class QuoteCommandsCog(
 
         self.bot.tree.add_command(self.quote_ctx)
 
+    @app_commands.checks.cooldown(1, 5)
     async def quote_callback(
         self, interaction: discord.Interaction["TitaniumBot"], message: discord.Message
     ):

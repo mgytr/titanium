@@ -129,6 +129,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
 
         await interaction.edit_original_response(embed=embed)
 
+    @app_commands.checks.cooldown(1, 5)
     async def convert_images_callback(
         self, interaction: discord.Interaction["TitaniumBot"], message: discord.Message
     ) -> None:

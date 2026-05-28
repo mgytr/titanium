@@ -509,7 +509,7 @@ class MusicCommandsCog(
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
     @app_commands.autocomplete(search=album_search_autocomplete)
-    @commands.cooldown(1, 10)
+    @commands.cooldown(1, 5)
     async def spotify_album(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -612,7 +612,7 @@ class MusicCommandsCog(
         url="The Spoptify link to get information for.",
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
-    @commands.cooldown(1, 10)
+    @commands.cooldown(1, 5)
     async def song_url(
         self, ctx: commands.Context["TitaniumBot"], url: str, ephemeral: bool = False
     ):
@@ -673,7 +673,7 @@ class MusicCommandsCog(
         url="The target Spotify URL. Song, album, playlist and spotify.link URLs are supported.",
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
-    @commands.cooldown(1, 10)
+    @commands.cooldown(1, 5)
     async def spotify_image(
         self, ctx: commands.Context["TitaniumBot"], url: str, ephemeral: bool = False
     ) -> None:
