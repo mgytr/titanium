@@ -77,10 +77,10 @@ class BasicCommandsCog(
             "Titanium includes the following powerful features (and more!) for free:\n\n"
             "- powerful moderation, automod and logging tools\n"
             "- bouncer system to monitor user profiles\n"
-            "- leaderboard, starboard and confession system to improve engagement\n"
+            "- leaderboard, starboard and confession systems to improve engagement\n"
             "- server wide quick response tags, or user specific tags that work in any server\n"
             "- web dashboard for easy management of your server's Titanium settings\n"
-            "- utility, web search, image manipulation, fun commands and more that work in any server when you add Titanium to your account\n\n"
+            "- utility, web search, image manipulation, fun and more commands that work in any server when you add Titanium to your account\n\n"
             "To add Titanium to your server or account, press the `Add App` button on Titanium's profile, or use the Add Bot link on Titanium's website!",
             colour=Colour.light_grey(),
         )

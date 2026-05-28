@@ -249,6 +249,7 @@ class LeaderboardCog(commands.Cog):
     # Leaderboard command
     @commands.hybrid_command(name="leaderboard", aliases=["lb", "top"])
     @commands.guild_only()
+    @commands.cooldown(1, 5)
     async def leaderboard_command(self, ctx: commands.Context["TitaniumBot"]):
         """Gets the leaderboard for the server."""
         if not ctx.guild:
@@ -333,6 +334,7 @@ class LeaderboardCog(commands.Cog):
     @app_commands.describe(
         member="Optional: the user to get the XP info from. Defaults to yourself."
     )
+    @commands.cooldown(1, 3)
     async def level_command(
         self, ctx: commands.Context["TitaniumBot"], member: discord.Member | None = None
     ):
@@ -432,6 +434,7 @@ class LeaderboardCog(commands.Cog):
 
     @xp_group.command(name="set", description="Set the XP of a user.")
     @global_alias("setxp")
+    @commands.cooldown(1, 3)
     async def set_xp(
         self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
     ) -> None:
@@ -489,6 +492,7 @@ class LeaderboardCog(commands.Cog):
 
     @xp_group.command(name="add", description="Add XP to a user.")
     @global_alias("addxp")
+    @commands.cooldown(1, 3)
     async def add_xp(
         self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
     ) -> None:
@@ -551,6 +555,7 @@ class LeaderboardCog(commands.Cog):
     @xp_group.command(name="remove", aliases=["deduct"], description="Remove XP from a user.")
     @global_alias("removexp")
     @global_alias("deductxp")
+    @commands.cooldown(1, 3)
     async def remove_xp(
         self, ctx: commands.Context["TitaniumBot"], user: discord.Member, xp: int
     ) -> None:

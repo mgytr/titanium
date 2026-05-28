@@ -23,6 +23,7 @@ class UtilityCog(commands.Cog, name="Utility", description="General utility comm
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 30)
     async def feedback(self, interaction: Interaction["TitaniumBot"]) -> None:
         modal = FeedbackModal()
         await interaction.response.send_modal(modal)
@@ -100,6 +101,7 @@ class UtilityCog(commands.Cog, name="Utility", description="General utility comm
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(data="Data to be included in the QR code.")
+    @commands.cooldown(1, 5)
     async def qrcode(
         self,
         ctx: commands.Context["TitaniumBot"],

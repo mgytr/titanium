@@ -23,6 +23,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @commands.cooldown(1, 3)
     async def user(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -110,6 +111,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(user="Optional: the user to get the PFP of. Defaults to yourself.")
+    @commands.cooldown(1, 3)
     async def pfp(
         self, ctx: commands.Context["TitaniumBot"], user: Optional[User | Member]
     ) -> None:
@@ -139,6 +141,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
     @commands.guild_only()
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.describe(user="Optional: the user to get the PFP of. Defaults to yourself.")
+    @commands.cooldown(1, 3)
     async def server_pfp(
         self, ctx: commands.Context["TitaniumBot"], user: Optional[Member]
     ) -> None:
@@ -174,6 +177,7 @@ class UserCommandsCog(commands.Cog, name="Users", description="Get user informat
     @app_commands.describe(user="Optional: the user to get the banner of. Defaults to yourself.")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @commands.cooldown(1, 3)
     async def banner(
         self,
         ctx: commands.Context["TitaniumBot"],

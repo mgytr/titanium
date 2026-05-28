@@ -27,6 +27,7 @@ class ConfessionCog(commands.Cog, name="Confession", description="Anonymous mess
     @app_commands.describe(
         message="Your message to include in the confession.",
     )
+    @app_commands.checks.cooldown(1, 10)
     async def confession(
         self,
         interaction: discord.Interaction["TitaniumBot"],

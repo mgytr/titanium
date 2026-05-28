@@ -165,6 +165,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         image="The image to convert.",
         output_format="The format to convert to.",
     )
+    @commands.cooldown(1, 5)
     async def convert_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -184,6 +185,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         aliases=["to-gif", "togif"],
     )
     @app_commands.describe(image="The image to convert.")
+    @commands.cooldown(1, 5)
     async def gif_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -206,6 +208,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         height="The new height of the image.",
         output_format="Optional: the format to output to. Defaults to PNG.",
     )
+    @commands.cooldown(1, 5)
     async def resize_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -231,6 +234,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         red_filter="Optional: whether to apply a red filter. Defaults to True.",
         output_format="Optional: the format to output to. Defaults to PNG.",
     )
+    @commands.cooldown(1, 5)
     async def deepfry_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -257,6 +261,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         image="The image to invert.",
         output_format="Optional: the format to output to. Defaults to PNG.",
     )
+    @commands.cooldown(1, 5)
     async def invert_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -278,6 +283,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         image="The image to convert to grayscale.",
         output_format="Optional: the format to output to. Defaults to PNG.",
     )
+    @commands.cooldown(1, 5)
     async def grayscale_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -300,6 +306,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         angle="The angle to rotate the image by (in degrees).",
         output_format="Optional: the format to output to. Defaults to PNG.",
     )
+    @commands.cooldown(1, 5)
     async def rotate_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -335,6 +342,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
             app_commands.Choice(name="Transparent", value="transparent"),
         ],
     )
+    @commands.cooldown(1, 5)
     async def speechbubble_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -372,6 +380,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
             app_commands.Choice(name="Figtree", value="figtree"),
         ],
     )
+    @commands.cooldown(1, 5)
     async def caption_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -403,6 +412,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         opacity="The percentage opacity of the overlay image.",
         output_format="Optional: the format to output to. Defaults to GIF.",
     )
+    @commands.cooldown(1, 5)
     async def overlay_image(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -425,6 +435,7 @@ class ImageCog(commands.Cog, name="Images", description="Image processing comman
         word="Word to generate image of. Cannot contain spaces, numbers or special characters.",
         output_format="Optional: the format to output to. Defaults to GIF.",
     )
+    @commands.cooldown(1, 5)
     async def nasa(
         self,
         ctx: commands.Context["TitaniumBot"],

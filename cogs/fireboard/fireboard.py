@@ -275,7 +275,6 @@ class FireboardCog(commands.Cog):
 
                 if (
                     board_channel is None
-                    or board_channel.guild.id != event.guild_id
                     or isinstance(
                         board_channel,
                         (
@@ -284,6 +283,7 @@ class FireboardCog(commands.Cog):
                             discord.abc.PrivateChannel,
                         ),
                     )
+                    or board_channel.guild.id != event.guild_id
                 ):
                     self.logger.debug(
                         f"Channel {fireboard_message.fireboard.channel_id} not found or invalid type"
@@ -418,7 +418,6 @@ class FireboardCog(commands.Cog):
 
             if (
                 board_channel is None
-                or board_channel.guild.id != event.guild_id
                 or isinstance(
                     board_channel,
                     (
@@ -427,6 +426,7 @@ class FireboardCog(commands.Cog):
                         discord.abc.PrivateChannel,
                     ),
                 )
+                or board_channel.guild.id != event.guild_id
             ):
                 self.logger.debug(f"Board channel {board.channel_id} not found or invalid type")
                 return
@@ -582,7 +582,6 @@ class FireboardCog(commands.Cog):
 
                 if (
                     channel is None
-                    or channel.guild.id != payload.guild_id
                     or isinstance(
                         channel,
                         (
@@ -591,6 +590,7 @@ class FireboardCog(commands.Cog):
                             discord.abc.PrivateChannel,
                         ),
                     )
+                    or channel.guild.id != payload.guild_id
                 ):
                     self.logger.debug("Edit channel not found")
                     continue
@@ -674,7 +674,6 @@ class FireboardCog(commands.Cog):
 
                 if (
                     channel is None
-                    or channel.guild.id != payload.guild_id
                     or isinstance(
                         channel,
                         (
@@ -683,6 +682,7 @@ class FireboardCog(commands.Cog):
                             discord.abc.PrivateChannel,
                         ),
                     )
+                    or channel.guild.id != payload.guild_id
                 ):
                     self.logger.debug(
                         f"Channel {fireboard_message.fireboard.channel_id} not found or invalid type"

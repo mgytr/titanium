@@ -25,8 +25,6 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
         self.bot = bot
 
     @commands.hybrid_group(name="server", description="Get information about the server.")
-    @app_commands.allowed_installs(guilds=True, users=True)
-    @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
     @commands.guild_only()
     async def server_group(self, ctx: commands.Context["TitaniumBot"]) -> None:
         await ctx.defer()
@@ -256,6 +254,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
         name="words", description="Get the amount of words members have sent in the server."
     )
     @commands.guild_only()
+    @commands.cooldown(1, 5)
     async def word_lb_command(self, ctx: commands.Context["TitaniumBot"]):
         if not ctx.guild:
             return
@@ -333,6 +332,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
         description="Get the amount of attachments members have sent in the server.",
     )
     @commands.guild_only()
+    @commands.cooldown(1, 5)
     async def attachment_lb_command(self, ctx: commands.Context["TitaniumBot"]):
         if not ctx.guild:
             return
@@ -410,6 +410,7 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
         description="Get the amount of explicit words members have sent in the server.",
     )
     @commands.guild_only()
+    @commands.cooldown(1, 5)
     async def explicit_lb_command(self, ctx: commands.Context["TitaniumBot"]):
         if not ctx.guild:
             return

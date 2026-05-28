@@ -74,6 +74,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     @app_commands.describe(
         user="The user to search for. You can only search for other users if you have a moderation permission."
     )
+    @commands.cooldown(1, 5)
     async def cases(
         self, ctx: commands.Context["TitaniumBot"], user: User | None = None
     ) -> None | Message:
@@ -159,6 +160,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     )
     @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
     @app_commands.describe(case_id="The case ID to search for.")
+    @commands.cooldown(1, 3)
     async def case_group(
         self, ctx: commands.Context["TitaniumBot"], case_id: str
     ) -> None | Message:
@@ -213,6 +215,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     )
     @app_commands.default_permissions(kick_members=True, ban_members=True, moderate_members=True)
     @app_commands.describe(case_id="The case ID to search for.")
+    @commands.cooldown(1, 3)
     async def case_comments(
         self, ctx: commands.Context["TitaniumBot"], case_id: str
     ) -> None | Message:
@@ -259,6 +262,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     @app_commands.describe(
         case_id="The case ID to add a comment to.", comment="The comment to add."
     )
+    @commands.cooldown(1, 10)
     async def case_add_comment(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -302,6 +306,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
         commands.has_permissions(moderate_members=True),
     )
     @app_commands.describe(case_id="The case ID to delete.")
+    @commands.cooldown(1, 3)
     async def view_case(self, ctx: commands.Context["TitaniumBot"], case_id: str) -> None | Message:
         if not ctx.guild or not self.bot.user:
             return
@@ -367,6 +372,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
         commands.has_permissions(moderate_members=True),
     )
     @app_commands.describe(user="The user to clean.")
+    @commands.cooldown(1, 3)
     async def clean_cases(self, ctx: commands.Context["TitaniumBot"], user: User) -> None | Message:
         await ctx.defer()
 
@@ -424,6 +430,7 @@ class ModerationCasesCog(commands.Cog, name="Cases", description="Manage moderat
     @global_alias("deleteallcases")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
+    @commands.cooldown(1, 3)
     async def delete_all_cases(self, ctx: commands.Context["TitaniumBot"]) -> None | Message:
         await ctx.defer()
 

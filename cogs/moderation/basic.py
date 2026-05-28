@@ -115,6 +115,7 @@ class ModerationBasicCog(
     @app_commands.describe(
         member="The member to warn.", reason="Optional: the reason for the warning."
     )
+    @commands.cooldown(1, 5)
     async def warn(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -210,6 +211,7 @@ class ModerationBasicCog(
         duration="Optional: the duration of the mute (e.g., 10m, 1h, 2h30m).",
         reason="Optional: the reason for the mute.",
     )
+    @commands.cooldown(1, 5)
     async def mute(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -367,6 +369,7 @@ class ModerationBasicCog(
     @commands.has_permissions(moderate_members=True)
     @commands.bot_has_permissions(moderate_members=True)
     @app_commands.describe(member="The member to unmute.")
+    @commands.cooldown(1, 5)
     async def unmute(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -514,6 +517,7 @@ class ModerationBasicCog(
     @app_commands.describe(
         member="The member to kick.", reason="Optional: the reason for the kick."
     )
+    @commands.cooldown(1, 5)
     async def kick(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -647,6 +651,7 @@ class ModerationBasicCog(
         duration="Optional: the duration of the ban (e.g., 10m, 1h, 2h30m).",
         reason="Optional: the reason for the ban.",
     )
+    @commands.cooldown(1, 5)
     async def ban(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -809,6 +814,7 @@ class ModerationBasicCog(
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_permissions(ban_members=True)
     @app_commands.describe(user="The user to unban.")
+    @commands.cooldown(1, 5)
     async def unban(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -943,6 +949,7 @@ class ModerationBasicCog(
         user="Optional: the user whose messages should be purged.",
         bot_only="Optional: whether to delete messages from bots only. Defaults to false.",
     )
+    @commands.cooldown(1, 5)
     async def purge(
         self,
         ctx: commands.Context["TitaniumBot"],

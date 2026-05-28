@@ -30,6 +30,7 @@ class GameCog(commands.Cog, name="Games", description="Play various simple games
         name="stats", aliases=["stat"], description="Get stats for games that you've played."
     )
     @app_commands.describe(user="The user to get game stats for.")
+    @commands.cooldown(1, 5)
     async def game_stats(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -68,6 +69,7 @@ class GameCog(commands.Cog, name="Games", description="Play various simple games
 
     @game_group.command(name="dice", description="Roll a dice and guess the number.")
     @app_commands.describe(guess="Your guess, between 1 and 6.")
+    @commands.cooldown(1, 3)
     async def dice_game(
         self, ctx: commands.Context["TitaniumBot"], guess: commands.Range[int, 1, 6]
     ) -> None:
@@ -103,6 +105,7 @@ class GameCog(commands.Cog, name="Games", description="Play various simple games
             app_commands.Choice(name="Tails", value="tails"),
         ],
     )
+    @commands.cooldown(1, 3)
     async def coin_flip_game(
         self,
         ctx: commands.Context["TitaniumBot"],

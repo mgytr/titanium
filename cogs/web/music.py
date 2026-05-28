@@ -146,12 +146,12 @@ class MusicCommandsCog(
     )
     @global_alias("song")
     @global_alias("track")
-    @commands.cooldown(1, 10)
     @app_commands.describe(
         search="What you are searching for.",
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
     @app_commands.autocomplete(search=song_search_autocomplete)
+    @commands.cooldown(1, 5)
     async def spotify_song(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -319,12 +319,12 @@ class MusicCommandsCog(
     # Spotify Artist Search command
     @spotify_group.command(name="artist", description="Search for an artist on Spotify.")
     @global_alias("artist")
-    @commands.cooldown(1, 10)
     @app_commands.describe(
         search="What you are searching for.",
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
     @app_commands.autocomplete(search=artist_search_autocomplete)
+    @commands.cooldown(1, 5)
     async def spotify_artist(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -504,12 +504,12 @@ class MusicCommandsCog(
     # Spotify Album Search command
     @spotify_group.command(name="album", description="Search for an album on Spotify.")
     @global_alias("album")
-    @commands.cooldown(1, 10)
     @app_commands.describe(
         search="What you are searching for.",
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
     @app_commands.autocomplete(search=album_search_autocomplete)
+    @commands.cooldown(1, 10)
     async def spotify_album(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -612,6 +612,7 @@ class MusicCommandsCog(
         url="The Spoptify link to get information for.",
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
+    @commands.cooldown(1, 10)
     async def song_url(
         self, ctx: commands.Context["TitaniumBot"], url: str, ephemeral: bool = False
     ):
@@ -895,6 +896,7 @@ class MusicCommandsCog(
         search="The term to search for.",
         ephemeral="Optional: whether to send the command output as a dismissible message only visible to you. Defaults to false.",
     )
+    @commands.cooldown(1, 5)
     async def lyrics(
         self,
         ctx: commands.Context["TitaniumBot"],

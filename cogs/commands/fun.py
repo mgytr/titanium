@@ -361,6 +361,7 @@ class FunCommandsCog(commands.GroupCog, group_name="fun", description="Fun comma
         username="The GitHub account to roast.",
         ephemeral="Optional: whether to send the command output as a dismissable message only visible to you. Defaults to false.",
     )
+    @commands.cooldown(1, 10)
     async def gh_roast(
         self, ctx: commands.Context["TitaniumBot"], username: str, ephemeral: bool = False
     ):

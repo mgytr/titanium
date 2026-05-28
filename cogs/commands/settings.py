@@ -953,6 +953,7 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 5)
     async def settings(self, interaction: Interaction["TitaniumBot"]) -> None:
         if not self.bot.user:
             return
@@ -978,6 +979,7 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
     )
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 10)
     async def remove_data(self, interaction: Interaction["TitaniumBot"]) -> None:
         await interaction.response.defer(ephemeral=True)
 
@@ -1058,6 +1060,7 @@ class GuildSettingsCog(commands.Cog, name="Settings", description="Manage server
     @app_commands.command(name="opt-in", description="Opt back into optional data collection.")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    @app_commands.checks.cooldown(1, 10)
     async def opt_in(self, interaction: Interaction["TitaniumBot"]) -> None:
         await interaction.response.defer(ephemeral=True)
 

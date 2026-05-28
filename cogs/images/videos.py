@@ -44,6 +44,7 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
         aliases=["to-gif", "togif"],
     )
     @app_commands.describe(video="The video to convert to GIF.")
+    @commands.cooldown(1, 5)
     async def gif_video(
         self,
         ctx: commands.Context["TitaniumBot"],
@@ -137,6 +138,7 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
         aliases=["to-webp", "towebp"],
     )
     @app_commands.describe(video="The video to convert to WebP.")
+    @commands.cooldown(1, 5)
     async def webp_video(
         self,
         ctx: commands.Context["TitaniumBot"],

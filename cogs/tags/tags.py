@@ -213,11 +213,11 @@ class TagCommandsCog(commands.Cog):
     @commands.hybrid_group(
         name="tag", aliases=["tags"], fallback="use", description="Send a server or user tag."
     )
-    @commands.cooldown(1, 3)
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(tag="The tag to send.")
     @app_commands.autocomplete(tag=tag_autocomplete)
+    @commands.cooldown(1, 3)
     async def tags_group(self, ctx: commands.Context["TitaniumBot"], tag: str):
         await ctx.defer()
 
@@ -335,7 +335,7 @@ class TagCommandsCog(commands.Cog):
     @tags_group.command(
         name="list", aliases=["viewall"], description="View a list of all server or user tags."
     )
-    @commands.cooldown(1, 3)
+    @commands.cooldown(1, 5)
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
     @app_commands.describe(mode="Whether to view server or user tags.")
