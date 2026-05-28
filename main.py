@@ -404,6 +404,26 @@ class TitaniumBot(commands.Bot):
             self.connected = False
             self.last_disconnect = datetime.datetime.now(datetime.timezone.utc)
 
+    async def on_error(self, event: str, *args, **kwargs):
+        exc = sys.exc_info()[1]
+        if not isinstance(exc, Exception):
+            exc = None
+
+        try:
+            await log_error(
+                bot=self,
+                module=event,
+                guild_id=0,
+                error="Uncaught Error",
+                store_err=False,
+                exc=exc,
+            )
+        except Exception:
+            if exc:
+                logging.exception(exc)
+            else:
+                logging.error(f"Unexpected error in {event}")
+
 
 async def get_prefix(bot: TitaniumBot, message: discord.Message):
     if message.guild:
