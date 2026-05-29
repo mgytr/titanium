@@ -95,7 +95,7 @@ class BasicCommandsCog(
         )
         embed.add_field(
             name="Links",
-            value="**Website:** https://titaniumbot.me\n**Dashboard:** https://dash.titaniumbot.me\n**Support Server:** https://titaniumbot.me/server",
+            value="**Website:** https://titaniumbot.me\n**Dashboard:** https://dash.titanium.fyi\n**Support Server:** https://titaniumbot.me/server",
         )
 
         await ctx.reply(embed=embed)

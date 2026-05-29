@@ -72,7 +72,7 @@ class StatsUpdateCog(commands.Cog):
                     status=discord.Status.online,
                     type=discord.ActivityType.custom,
                     name="titanium",
-                    state="🔧 dash.titaniumbot.me",
+                    state="🔧 dash.titanium.fyi",
                 )
             )
         elif self.current_status == 1:
