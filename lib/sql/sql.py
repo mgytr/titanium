@@ -159,7 +159,7 @@ class GuildSettings(Base):
         uselist=False,
     )
 
-    tags_enabled: Mapped[bool] = MappedColumn(Boolean, server_default=text("false"))
+    tags_enabled: Mapped[bool] = MappedColumn(Boolean, server_default=text("true"))
     tag_settings: Mapped["GuildTagSettings"] = relationship(
         "GuildTagSettings",
         cascade="all, delete-orphan",
