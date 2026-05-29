@@ -717,7 +717,7 @@ class Tag(Base):
     modified_by: Mapped[int | None] = MappedColumn(BigInteger, nullable=True)
     is_user: Mapped[bool] = MappedColumn(Boolean, nullable=False)
     name: Mapped[str] = MappedColumn(String(length=80), nullable=False)
-    content: Mapped[str] = MappedColumn(String(length=1024), nullable=False)
+    content: Mapped[str] = MappedColumn(String(length=2000), nullable=False)
     amount_used: Mapped[int] = MappedColumn(BigInteger, server_default=text("0"))
 
 

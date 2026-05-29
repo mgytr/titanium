@@ -211,6 +211,7 @@ async def migrate_leaderboard(bot: TitaniumBot) -> None:
 
 
 async def migrate_tags(bot: TitaniumBot):
+    logging.info(f"{len(bot.guilds)} cached guilds")
     known_guilds: list[int] = []
     known_users: list[int] = []
 
@@ -222,31 +223,48 @@ async def migrate_tags(bot: TitaniumBot):
             tag_owner = int(tag[1])
             mode = ""
 
+            if not tag[2] or not tag[3]:
+                continue
+
             if tag_owner in known_guilds:
                 mode = "guild"
             elif tag_owner in known_users:
                 mode = "user"
 
             if not mode:
-                if bot.get_guild(int(tag[1])):
-                    known_guilds.append(int(tag[1]))
-                    mode = "guild"
-                elif bot.get_user(int(tag[1])):
-                    known_users.append(int(tag[1]))
-                    mode = "user"
-                elif await bot.fetch_user(int(tag[1])):
-                    known_users.append(int(tag[1]))
-                    mode = "user"
-                else:
+                try:
+                    if bot.get_guild(int(tag[1])):
+                        known_guilds.append(int(tag[1]))
+                        mode = "guild"
+                    elif bot.get_user(int(tag[1])):
+                        known_users.append(int(tag[1]))
+                        mode = "user"
+                    elif await bot.fetch_user(int(tag[1])):
+                        known_users.append(int(tag[1]))
+                        mode = "user"
+                    else:
+                        logging.info(f"Skipping unknown user / guild: {int(tag[1])}")
+                        continue
+                except Exception:
+                    logging.info(f"Skipping unknown user / guild: {int(tag[1])}")
                     continue
 
             if mode == "guild":
                 await bot.init_guild(int(tag_owner), refresh=False)
                 new_tag = Tag(
-                    name=tag[2], content=tag[3], guild_id=tag_owner, is_user=False, owner_id=0
+                    name=str(tag[2])[:80],
+                    content=str(tag[3])[:2000],
+                    guild_id=tag_owner,
+                    is_user=False,
+                    owner_id=0,
                 )
             else:
-                new_tag = Tag(name=tag[2], content=tag[3], is_user=True, owner_id=tag_owner)
+                new_tag = Tag(
+                    name=str(tag[2])[:80],
+                    content=str(tag[3])[:2000],
+                    is_user=True,
+                    owner_id=tag_owner,
+                )
 
             session.add(new_tag)
 
