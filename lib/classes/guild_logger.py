@@ -1543,7 +1543,7 @@ class GuildLogger:
 
                 embeds.append(
                     discord.Embed(
-                        url="https://titaniumbot.me", colour=discord.Colour.red()
+                        url="https://titanium.fyi", colour=discord.Colour.red()
                     ).set_image(url=attachment.url)
                 )
 

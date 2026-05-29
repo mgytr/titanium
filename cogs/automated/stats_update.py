@@ -61,7 +61,7 @@ class StatsUpdateCog(commands.Cog):
                     status=discord.Status.online,
                     type=discord.ActivityType.custom,
                     name="titanium",
-                    state="🌐 titaniumbot.me",
+                    state="🌐 titanium.fyi",
                 )
             )
         elif self.current_status == 0:

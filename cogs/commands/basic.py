@@ -53,7 +53,7 @@ class BasicCommandsCog(
             description=(
                 f"{self.websocket_emoji_select(self.bot.latency)} **Websocket latency:** `{self.bot.latency * 1000:.2f}ms`\n"
                 f"{self.api_emoji_select(self.bot.api_latency)} **Discord API latency:** `{f'{self.bot.api_latency * 1000:.2f}ms' if self.bot.api_latency > 0 else 'Unavailable'}`"
-                "\n\nIs ping high or is the bot running slow? Check the [status page](https://titaniumbot.me/status) or join the [support server](https://titaniumbot.me/server) for help."
+                "\n\nIs ping high or is the bot running slow? Check the [status page](https://titanium.fyi/status) or join the [support server](https://titanium.fyi/server) for help."
             ),
             colour=Colour.green(),
         )
@@ -86,7 +86,7 @@ class BasicCommandsCog(
         )
         embed.set_author(
             name="Titanium",
-            url="https://titaniumbot.me",
+            url="https://titanium.fyi",
             icon_url=self.bot.user.display_avatar.url if self.bot.user else "",
         )
         embed.set_footer(
@@ -95,7 +95,7 @@ class BasicCommandsCog(
         )
         embed.add_field(
             name="Links",
-            value="**Website:** https://titaniumbot.me\n**Dashboard:** https://dash.titanium.fyi\n**Support Server:** https://titaniumbot.me/server",
+            value="**Website:** https://titanium.fyi\n**Dashboard:** https://dash.titanium.fyi\n**Support Server:** https://titanium.fyi/server",
         )
 
         await ctx.reply(embed=embed)
@@ -107,7 +107,7 @@ class BasicCommandsCog(
             description="Use this invite to add Titanium to your account or server.",
             colour=Colour.light_grey(),
         )
-        embed.add_field(name="Invite", value="https://titaniumbot.me/invite")
+        embed.add_field(name="Invite", value="https://titanium.fyi/invite")
 
         view = View()
         view.add_item(

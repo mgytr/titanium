@@ -64,7 +64,7 @@ class HelpCommandCog(commands.Cog):
 
             embed.add_field(
                 name="Need more help?",
-                value="Join the **[Support Server](https://titaniumbot.me/server)** for feature and status updates, support, and more.",
+                value="Join the **[Support Server](https://titanium.fyi/server)** for feature and status updates, support, and more.",
             )
 
             await ctx.reply(embed=embed, ephemeral=True)

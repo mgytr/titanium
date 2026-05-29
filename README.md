@@ -2,7 +2,7 @@
 
 Welcome to Titanium's main code repo! Titanium is your multipurpose, open source Discord bot.
 
-[Add Titanium Now!](https://titaniumbot.me/invite) (you will agree to the [Privacy Policy](https://titaniumbot.me/privacy/bot) and [Terms of Use policy](https://titaniumbot.me/terms))
+[Add Titanium Now!](https://titanium.fyi/invite) (you will agree to the [Privacy Policy](https://titanium.fyi/privacy/bot) and [Terms of Use policy](https://titanium.fyi/terms))
 
 Titanium v2 includes many features designed to improve your Discord experience, such as:
 
