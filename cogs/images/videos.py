@@ -220,6 +220,12 @@ class VideoCog(commands.Cog, name="Videos", description="Video processing comman
                 await ctx.reply(embed=embed)
                 return
 
+            # fix RIFF size header
+            if output_size >= 12 and stdout_data[:4] == b"RIFF" and stdout_data[8:12] == b"WEBP":
+                stdout_data = bytearray(stdout_data)
+                stdout_data[4:8] = (output_size - 8).to_bytes(4, byteorder="little")
+                stdout_data = bytes(stdout_data)
+
             output_data = BytesIO(stdout_data)
             output_data.seek(0)
 
