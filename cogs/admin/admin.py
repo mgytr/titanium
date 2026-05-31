@@ -10,6 +10,7 @@ from discord.ext import commands
 
 from lib.helpers.cache import get_or_fetch_member, get_or_fetch_message
 from lib.helpers.hybrid import defer, handle_group_command_not_found
+from lib.views.pagination import PaginationView
 
 if TYPE_CHECKING:
     from main import TitaniumBot
@@ -251,6 +252,29 @@ class AdminCog(commands.Cog):
                     ),
                     ephemeral=True,
                 )
+
+    @admin_group.command(name="serverlist", aliases=["server-list", "servers"], hidden=True)
+    @commands.is_owner()
+    async def server_list(self, ctx: commands.Context) -> None:
+        async with defer(ctx, ephemeral=True):
+            page: list[str] = []
+            pages: list[discord.Embed] = []
+
+            for i, guild in enumerate(self.bot.guilds, start=1):
+                page.append(f"{i}. `{guild.name}` (`{guild.id}`) (`{guild.member_count}` members)")
+
+                if len(page) == 20:
+                    pages.append(discord.Embed(title="Servers", description="\n".join(page)))
+                    page = []
+
+            if page:
+                pages.append(discord.Embed(title="Servers", description="\n".join(page)))
+
+            if len(pages) > 1:
+                view = PaginationView(embeds=pages, timeout=900)
+                await ctx.reply(embed=pages[0], view=view)
+            else:
+                await ctx.reply(embed=pages[0])
 
     @admin_group.command(name="unlockuser", aliases=["unlock-user"], hidden=True)
     @commands.is_owner()
