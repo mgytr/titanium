@@ -266,8 +266,9 @@ class SongLyricSelection(Select):
                 embeds=embed_pages,
                 timeout=300,
             )
-
-        await interaction.edit_original_response(embed=embed_pages[0], view=view)
+            await interaction.edit_original_response(embed=embed_pages[0], view=view)
+        else:
+            await interaction.edit_original_response(embed=embed_pages[0])
 
 
 class SongLyricsSelectionView(View):
