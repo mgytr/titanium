@@ -24,7 +24,12 @@ class ServerCommandsCog(commands.Cog, name="Server", description="Get server inf
     def __init__(self, bot: TitaniumBot) -> None:
         self.bot = bot
 
-    @commands.hybrid_group(name="server", description="Get information about the server.")
+    @commands.hybrid_group(
+        name="server",
+        fallback="info",
+        aliases=["serverinfo", "server-info"],
+        description="Get information about the server.",
+    )
     @commands.guild_only()
     @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.allowed_contexts(guilds=True, dms=False, private_channels=False)
