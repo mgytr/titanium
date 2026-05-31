@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import timedelta
@@ -120,6 +121,8 @@ LOGGING_EVENT_MAP = {event.event: event for event in LOGGING_EVENTS}
 class GuildLogger:
     """Server logging class, used to log Discord events to server webhooks"""
 
+    _channel_locks: dict[int, asyncio.Lock] = {}
+
     def __init__(self, bot: TitaniumBot, guild: discord.Guild | discord.PartialInviteGuild):
         self.bot = bot
         self.guild = guild
@@ -147,56 +150,60 @@ class GuildLogger:
         if not channel_id:
             return None
 
-        if self.guild.id in self.bot.available_webhooks:
-            for webhook in self.bot.available_webhooks[self.guild.id]:
-                if webhook.channel_id == channel_id:
-                    self.logger.debug(
-                        f"Found existing webhook for channel {channel_id} in guild {self.guild.id}"
+        if channel_id not in self._channel_locks:
+            self._channel_locks[channel_id] = asyncio.Lock()
+
+        async with self._channel_locks[channel_id]:
+            if self.guild.id in self.bot.available_webhooks:
+                for webhook in self.bot.available_webhooks[self.guild.id]:
+                    if webhook.channel_id == channel_id:
+                        self.logger.debug(
+                            f"Found existing webhook for channel {channel_id} in guild {self.guild.id}"
+                        )
+                        return webhook.webhook_url
+
+            # Get channel
+            if isinstance(self.guild, discord.PartialInviteGuild):
+                self.guild = await self.bot.fetch_guild(self.guild.id)
+
+            channel = self.guild.get_channel(channel_id)
+            if channel is None or isinstance(channel, discord.CategoryChannel):
+                return None
+            try:
+                # Create a webhook
+                webhook = await channel.create_webhook(name="Managed by Titanium")
+
+                async with get_session() as session:
+                    session.add(
+                        AvailableWebhook(
+                            guild_id=self.guild.id,
+                            channel_id=channel.id,
+                            webhook_url=webhook.url,
+                        )
                     )
-                    return webhook.webhook_url
 
-        # Get channel
-        if isinstance(self.guild, discord.PartialInviteGuild):
-            self.guild = await self.bot.fetch_guild(self.guild.id)
-
-        channel = self.guild.get_channel(channel_id)
-        if channel is None or isinstance(channel, discord.CategoryChannel):
-            return None
-        try:
-            # Create a webhook
-            webhook = await channel.create_webhook(name="Managed by Titanium")
-
-            async with get_session() as session:
-                session.add(
-                    AvailableWebhook(
-                        guild_id=self.guild.id,
-                        channel_id=channel.id,
-                        webhook_url=webhook.url,
-                    )
+                await self.bot.refresh_guild_config_cache(self.guild.id)
+                return webhook.url
+            except discord.Forbidden as e:
+                await log_error(
+                    bot=self.bot,
+                    module="Logging",
+                    guild_id=self.guild.id,
+                    error=f"Missing permissions to create webhook in channel #{channel.name} ({channel.id})",
+                    details=e.text,
                 )
 
-            await self.bot.refresh_guild_config_cache(self.guild.id)
-            return webhook.url
-        except discord.Forbidden as e:
-            await log_error(
-                bot=self.bot,
-                module="Logging",
-                guild_id=self.guild.id,
-                error=f"Missing permissions to create webhook in channel #{channel.name} ({channel.id})",
-                details=e.text,
-            )
+                return None
+            except discord.HTTPException as e:
+                await log_error(
+                    bot=self.bot,
+                    module="Logging",
+                    guild_id=self.guild.id,
+                    error=f"Unknown Discord error while creating webhook in channel #{channel.name} ({channel.id})",
+                    details=e.text,
+                )
 
-            return None
-        except discord.HTTPException as e:
-            await log_error(
-                bot=self.bot,
-                module="Logging",
-                guild_id=self.guild.id,
-                error=f"Unknown Discord error while creating webhook in channel #{channel.name} ({channel.id})",
-                details=e.text,
-            )
-
-            return None
+                return None
 
     async def _send_to_webhook(
         self,
