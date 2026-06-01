@@ -518,15 +518,9 @@ class APICog(commands.Cog):
                 if user_id in cached_users:
                     continue
 
-                member = guild.get_member(user_id)
-                if member:
-                    cached_users[user_id] = member
-                else:
-                    try:
-                        user = await self.bot.fetch_user(user_id)
-                        cached_users[user_id] = user
-                    except Exception:
-                        cached_users[user_id] = None
+                cached_users[user_id] = await get_or_fetch_member(
+                    self.bot, guild, user_id, user_fallback=True
+                )
 
         cases_output = []
         for case in cases:

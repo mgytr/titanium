@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 
 import discord
 
@@ -28,9 +28,21 @@ async def get_or_fetch_message(
         return None
 
 
+@overload
 async def get_or_fetch_member(
-    bot: TitaniumBot, guild: discord.Guild, user_id: int
-) -> discord.Member | None:
+    bot: TitaniumBot, guild: discord.Guild, user_id: int, user_fallback: Literal[False] = False
+) -> discord.Member | None: ...
+
+
+@overload
+async def get_or_fetch_member(
+    bot: TitaniumBot, guild: discord.Guild, user_id: int, user_fallback: Literal[True]
+) -> discord.Member | discord.User | None: ...
+
+
+async def get_or_fetch_member(
+    bot: TitaniumBot, guild: discord.Guild, user_id: int, user_fallback: bool = False
+) -> discord.Member | discord.User | None:
     # Try to get the member from cache
     member = guild.get_member(user_id)
     if member:
@@ -43,7 +55,11 @@ async def get_or_fetch_member(
         member = await guild.fetch_member(user_id)
         return member
     except discord.NotFound:
-        return None
+        if not user_fallback:
+            return None
+
+        user = await get_or_fetch_user(bot, user_id)
+        return user
 
 
 async def get_or_fetch_user(bot: TitaniumBot, user_id: int) -> discord.User | None:
