@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 import discord
 from discord import Message, app_commands
@@ -824,7 +824,7 @@ class ModerationBasicCog(
                 ):
                     self.bot.punishing[ctx.guild.id].remove(user.id)
 
-    @commands.hybrid_command(name="unban", description="Unban a member from the server.")
+    @commands.hybrid_command(name="unban", description="Unban a user from the server.")
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_permissions(ban_members=True)
     @app_commands.describe(user="The user to unban.")
@@ -937,6 +937,7 @@ class ModerationBasicCog(
                 ):
                     self.bot.punishing[ctx.guild.id].remove(user.id)
 
+
     @commands.hybrid_command(
         name="purge",
         description="Purge up to 300 messages up to 14 days old from a channel.",
@@ -1033,6 +1034,180 @@ class ModerationBasicCog(
                     embed=mod_embeds.http_exception(self.bot, ctx.author),
                     **del_kwargs,
                 )
+    ### MASS PUNISHMENTS ###
+    @commands.hybrid_command(name="masswarn", description="Warn members for a specified reason.")
+    @commands.check_any(
+        commands.has_permissions(kick_members=True),
+        commands.has_permissions(ban_members=True),
+        commands.has_permissions(moderate_members=True),
+    )
+    @app_commands.describe(
+        member1="The first member to warn.",
+        member2="The second member to warn.",
+        member3="The third member to warn.",
+        member4="The fourth member to warn.",
+        member5="The fifth member to warn.",
+        reason="Optional: the reason for the warning."
+    )
+    @commands.cooldown(1, 5)
+    async def masswarn(
+        self,
+        ctx: commands.Context["TitaniumBot"],
+        member1: discord.Member,
+        member2: discord.Member,
+        member3: Optional[discord.Member] = None,
+        member4: Optional[discord.Member] = None,
+        member5: Optional[discord.Member] = None,
+        *,
+        reason: str = "",
+    ) -> None | Message:
+        if not ctx.guild or not self.bot.user or not isinstance(ctx.author, discord.Member):
+            return
+        
+        async with defer(ctx, stop_only=True):
+            for member in (member1, member2, member3, member4, member5):
+                if not member:
+                    continue
+                try:
+                    await self.warn(ctx, member, reason=reason)
+                except Exception as e:
+                    command_error = commands.CommandInvokeError(e)
+                    await ctx.bot.on_command_error(ctx, command_error)
+                    continue
+
+    @commands.hybrid_command(
+        name="massmute",
+        aliases=["masstimeout"],
+        description="Mute members for a specified duration.",
+    )
+    @commands.has_permissions(moderate_members=True)
+    @commands.bot_has_permissions(moderate_members=True)
+    @app_commands.describe(
+        member1="The first member to mute.",
+        member2="The second member to mute.",
+        member3="The third member to mute.",
+        member4="The fourth member to mute.",
+        member5="The fifth member to mute.",
+        duration="Optional: the duration of the mute (e.g., 10m, 1h, 2h30m).",
+        reason="Optional: the reason for the mute.",
+    )
+    @commands.cooldown(1, 5)
+    async def massmute(
+        self,
+        ctx: commands.Context["TitaniumBot"],
+        member1: discord.Member,
+        member2: discord.Member,
+        member3: Optional[discord.Member] = None,
+        member4: Optional[discord.Member] = None,
+        member5: Optional[discord.Member] = None,
+        duration: str = "",
+        *,
+        reason: str = "",
+    ) -> None | Message:
+        if not ctx.guild or not self.bot.user or not isinstance(ctx.author, discord.Member):
+            return
+
+        async with defer(ctx, stop_only=True):
+            # Check if guild for type checking
+            if not ctx.guild:
+                return
+
+            for member in (member1, member2, member3, member4, member5):
+                if not member:
+                    continue
+                try:
+                    await self.mute(ctx, member, duration=duration, reason=reason)
+                except Exception as e:
+                    command_error = commands.CommandInvokeError(e)
+                    await ctx.bot.on_command_error(ctx, command_error)
+                    continue
+
+    @commands.hybrid_command(name="masskick", description="Kick members from the server.")
+    @commands.has_permissions(kick_members=True)
+    @commands.bot_has_permissions(kick_members=True)
+    @app_commands.describe(
+        member1="The first member to kick.",
+        member2="The second member to kick.",
+        member3="The third member to kick.",
+        member4="The fourth member to kick.",
+        member5="The fifth member to kick.",
+        reason="Optional: the reason for the kick."
+    )
+    @commands.cooldown(1, 5)
+    async def masskick(
+        self,
+        ctx: commands.Context["TitaniumBot"],
+        member1: discord.Member,
+        member2: discord.Member,
+        member3: Optional[discord.Member] = None,
+        member4: Optional[discord.Member] = None,
+        member5: Optional[discord.Member] = None,
+        *,
+        reason: str = "",
+    ) -> None | Message:
+        if not ctx.guild or not self.bot.user or not isinstance(ctx.author, discord.Member):
+            return
+        
+        async with defer(ctx, stop_only=True):
+            # Check if guild for type checking
+            if not ctx.guild:
+                return
+            for member in (member1, member2, member3, member4, member5):
+                if not member:
+                    continue
+                try:
+                    await self.kick(ctx, member, reason=reason)
+                except Exception as e:
+                    command_error = commands.CommandInvokeError(e)
+                    await ctx.bot.on_command_error(ctx, command_error)
+                    continue
+
+
+    @commands.hybrid_command(name="massban", description="Ban users from the server.")
+    @commands.has_permissions(ban_members=True)
+    @commands.bot_has_permissions(ban_members=True)
+    @app_commands.describe(
+        user1="The first user to ban.",
+        user2="The second user to ban.",
+        user3="The third user to ban",
+        user4="The fourth user to ban.",
+        user5="The fifth user to ban",
+        duration="Optional: the duration of the ban (e.g., 10m, 1h, 2h30m).",
+        reason="Optional: the reason for the ban.",
+    )
+    @commands.cooldown(1, 5)
+    async def massban(
+        self,
+        ctx: commands.Context["TitaniumBot"],
+        user1: discord.Member,
+        user2: discord.Member,
+        user3: Optional[discord.Member] = None,
+        user4: Optional[discord.Member] = None,
+        user5: Optional[discord.Member] = None,
+        duration: str = "",
+        *,
+        reason: str = "",
+    ) -> None | Message:
+        if not ctx.guild or not self.bot.user or not isinstance(ctx.author, discord.Member):
+            return
+
+        async with defer(ctx, stop_only=True):
+            # Check if guild for type checking
+            if not ctx.guild:
+                return
+            
+            for user in (user1, user2, user3, user4, user5):
+                if not user:
+                    continue
+                try:
+                    await self.ban(ctx, user, duration=duration, reason=reason)
+                except Exception as e:
+                    command_error = commands.CommandInvokeError(e)
+                    await ctx.bot.on_command_error(ctx, command_error)
+                    continue
+            
+
+
 
 
 async def setup(bot: TitaniumBot) -> None:
