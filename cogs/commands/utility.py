@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import binascii
 from typing import TYPE_CHECKING
 
 import humanize
@@ -77,7 +78,17 @@ class UtilityCog(commands.Cog, name="Utility", description="General utility comm
 
         await ctx.defer()
 
-        decoded = base64.b64decode(base_64.encode("utf-8")).decode("utf-8")
+        try:
+            decoded = base64.b64decode(base_64.encode("utf-8")).decode("utf-8")
+        except binascii.Error:
+            embed = Embed(
+                colour=Colour.red(),
+                title=f"{self.bot.error_emoji} Invalid Input",
+                description="The input is not valid Base64.",
+            )
+            embed.set_footer(text=f"@{ctx.author.name}", icon_url=ctx.author.display_avatar.url)
+            await ctx.reply(embed=embed)
+            return
 
         if len(decoded) > 4090:
             embed = Embed(
