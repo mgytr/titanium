@@ -98,7 +98,11 @@ class GuildModCaseManager:
             guild_settings = await self.bot.fetch_guild_config(self.guild.id)
 
             # Check if external cases are enabled
-            if guild_settings and not guild_settings.moderation_settings.external_cases:
+            if (
+                not guild_settings
+                or not guild_settings.moderation_enabled
+                or not guild_settings.moderation_settings.external_cases
+            ):
                 raise ExternalCasesDisabledException
 
         case = ModCase(
