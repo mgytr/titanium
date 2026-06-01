@@ -306,7 +306,7 @@ class ModerationBasicCog(
                         error=f"Titanium was not allowed to kick @{member.name} ({member.id})",
                         details=e.text,
                     )
-                    await manager.delete_case(case.id)
+                    await manager.delete_case(case.id, raise_not_found=False)
                     return PunishmentResult.FORBIDDEN, None, None, None
                 except discord.HTTPException as e:
                     await log_error(
@@ -316,10 +316,10 @@ class ModerationBasicCog(
                         error=f"Unknown Discord error while kicking @{member.name} ({member.id})",
                         details=e.text,
                     )
-                    await manager.delete_case(case.id)
+                    await manager.delete_case(case.id, raise_not_found=False)
                     return PunishmentResult.UNKNOWN, None, None, None
                 except Exception as e:
-                    await manager.delete_case(case.id)
+                    await manager.delete_case(case.id, raise_not_found=False)
                     raise e
 
             return PunishmentResult.SUCCESS, case, dm_success, dm_error
@@ -411,7 +411,7 @@ class ModerationBasicCog(
                         error=f"Titanium was not allowed to ban @{user.name} ({user.id})",
                         details=e.text,
                     )
-                    await manager.delete_case(case.id)
+                    await manager.delete_case(case.id, raise_not_found=False)
                     return PunishmentResult.FORBIDDEN, None, None, None
                 except discord.HTTPException as e:
                     await log_error(
@@ -421,10 +421,10 @@ class ModerationBasicCog(
                         error=f"Unknown Discord error while banning @{user.name} ({user.id})",
                         details=e.text,
                     )
-                    await manager.delete_case(case.id)
+                    await manager.delete_case(case.id, raise_not_found=False)
                     return PunishmentResult.UNKNOWN, None, None, None
                 except Exception as e:
-                    await manager.delete_case(case.id)
+                    await manager.delete_case(case.id, raise_not_found=False)
                     raise e
 
             return PunishmentResult.SUCCESS, case, dm_success, dm_error
@@ -1091,7 +1091,7 @@ class ModerationBasicCog(
                     )
 
                 return await ctx.reply(
-                    ephemeral=True, embed=mod_embeds.forbidden(self.bot, ctx.author), **del_kwargs
+                    ephemeral=True, embed=mod_embeds.forbidden(self.bot), **del_kwargs
                 )
             except discord.HTTPException as e:
                 if not isinstance(
@@ -1108,12 +1108,16 @@ class ModerationBasicCog(
 
                 return await ctx.reply(
                     ephemeral=True,
-                    embed=mod_embeds.http_exception(self.bot, ctx.author),
+                    embed=mod_embeds.http_exception(self.bot),
                     **del_kwargs,
                 )
 
     ### MASS PUNISHMENTS ###
-    @commands.hybrid_command(name="masswarn", description="Warn members for a specified reason.")
+    @commands.hybrid_command(
+        name="masswarn",
+        aliases=["mass-warn", "bulkwarn", "bulk-warn"],
+        description="Warn members for a specified reason.",
+    )
     @commands.check_any(
         commands.has_permissions(kick_members=True),
         commands.has_permissions(ban_members=True),
@@ -1143,20 +1147,64 @@ class ModerationBasicCog(
             return
 
         async with defer(ctx, stop_only=True):
-            for member in (member1, member2, member3, member4, member5):
-                if not member:
-                    continue
+            successful_warns: list[tuple[discord.Member, str]] = []
+            failed_warns: list[tuple[discord.Member, str]] = []
 
-                try:
-                    await self.warn(ctx, member, reason=reason)
-                except Exception as e:
-                    command_error = commands.CommandInvokeError(e)
-                    await ctx.bot.on_command_error(ctx, command_error)
-                    continue
+            raw_users = {u for u in (member1, member2, member3, member4, member5) if u}
+            valid_users: set[discord.Member] = set([user for user in raw_users if user is not None])
+
+            config = await self.bot.fetch_guild_config(ctx.guild.id)
+            del_kwargs: dict[str, Any] = (
+                {"delete_after": 5.0}
+                if config and config.moderation_settings.delete_confirmation
+                else {}
+            )
+
+            if not valid_users:
+                embed = mod_embeds.mass_warned(
+                    self.bot, successful_warns, failed_warns, ctx.author, reason
+                )
+                return await ctx.reply(ephemeral=True, embed=embed, **del_kwargs)
+
+            for user in valid_users:
+                status, _, dm_success, dm_error = await self._warn_member(
+                    ctx=ctx, member=user, reason=reason
+                )
+
+                if status == PunishmentResult.SUCCESS:
+                    successful_warns.append(
+                        (user, dm_error or "DM Error" if not dm_success else "")
+                    )
+                elif status == PunishmentResult.NOT_IN_GUILD:
+                    failed_warns.append((user, "Not in guild"))
+                elif status == PunishmentResult.CANT_MOD_SELF:
+                    failed_warns.append((user, "Can't moderate yourself"))
+                elif status == PunishmentResult.NOT_ALLOWED:
+                    failed_warns.append((user, "You aren't allowed to warn this user"))
+                elif status == PunishmentResult.BOT_NOT_ALLOWED:
+                    failed_warns.append((user, "Titanium isn't allowed to warn this user"))
+                elif status == PunishmentResult.ALREADY_PUNISHING:
+                    failed_warns.append((user, "User is already being punished"))
+
+            embed = mod_embeds.mass_warned(
+                bot=self.bot,
+                successful_users=successful_warns,
+                failed_users=failed_warns,
+                creator=ctx.author,
+                reason=reason,
+            )
+            await ctx.reply(embed=embed, ephemeral=True)
 
     @commands.hybrid_command(
         name="massmute",
-        aliases=["masstimeout"],
+        aliases=[
+            "masstimeout",
+            "mass-timeout",
+            "bulktimeout",
+            "bulk-timeout",
+            "bulkmute",
+            "bulk-mute",
+        ],
         description="Mute members for a specified duration.",
     )
     @commands.has_permissions(moderate_members=True)
@@ -1187,21 +1235,78 @@ class ModerationBasicCog(
             return
 
         async with defer(ctx, stop_only=True):
-            # Check if guild for type checking
-            if not ctx.guild:
-                return
+            successful_mutes: list[tuple[discord.Member, str]] = []
+            failed_mutes: list[tuple[discord.Member, str]] = []
 
-            for member in (member1, member2, member3, member4, member5):
-                if not member:
-                    continue
-                try:
-                    await self.mute(ctx, member, duration=duration, reason=reason)
-                except Exception as e:
-                    command_error = commands.CommandInvokeError(e)
-                    await ctx.bot.on_command_error(ctx, command_error)
-                    continue
+            raw_users = {u for u in (member1, member2, member3, member4, member5) if u}
+            valid_users: set[discord.Member] = set([user for user in raw_users if user is not None])
 
-    @commands.hybrid_command(name="masskick", description="Kick members from the server.")
+            config = await self.bot.fetch_guild_config(ctx.guild.id)
+            del_kwargs: dict[str, Any] = (
+                {"delete_after": 5.0}
+                if config and config.moderation_settings.delete_confirmation
+                else {}
+            )
+
+            # Process duration
+            processed_duration = await DurationConverter().convert(ctx, duration)
+            processed_reason = reason
+
+            if not ctx.interaction and processed_duration is None:
+                processed_reason = duration + " " + reason if reason else duration
+
+            if not valid_users:
+                embed = mod_embeds.mass_muted(
+                    self.bot,
+                    successful_mutes,
+                    failed_mutes,
+                    ctx.author,
+                    processed_reason,
+                    processed_duration,
+                )
+                return await ctx.reply(ephemeral=True, embed=embed, **del_kwargs)
+
+            for user in valid_users:
+                status, _, dm_success, dm_error = await self._mute_member(
+                    ctx=ctx, member=user, duration=duration, reason=reason
+                )
+
+                if status == PunishmentResult.SUCCESS:
+                    successful_mutes.append(
+                        (user, dm_error or "DM Error" if not dm_success else "")
+                    )
+                elif status == PunishmentResult.NOT_IN_GUILD:
+                    failed_mutes.append((user, "Not in guild"))
+                elif status == PunishmentResult.CANT_MOD_SELF:
+                    failed_mutes.append((user, "Can't moderate yourself"))
+                elif status == PunishmentResult.NOT_ALLOWED:
+                    failed_mutes.append((user, "You aren't allowed to mute this user"))
+                elif status == PunishmentResult.BOT_NOT_ALLOWED:
+                    failed_mutes.append((user, "Titanium isn't allowed to mute this user"))
+                elif status == PunishmentResult.ALREADY_PUNISHING:
+                    failed_mutes.append((user, "User is already being punished"))
+                elif status == PunishmentResult.ALREADY_PUNISHED:
+                    failed_mutes.append((user, "User is already muted"))
+                elif status == PunishmentResult.FORBIDDEN:
+                    failed_mutes.append((user, "Forbidden when trying to mute user"))
+                elif status == PunishmentResult.UNKNOWN:
+                    failed_mutes.append((user, "Unknown Discord error when trying to mute user"))
+
+            embed = mod_embeds.mass_muted(
+                bot=self.bot,
+                successful_users=successful_mutes,
+                failed_users=failed_mutes,
+                creator=ctx.author,
+                reason=processed_reason,
+                duration=processed_duration,
+            )
+            await ctx.reply(embed=embed, ephemeral=True)
+
+    @commands.hybrid_command(
+        name="masskick",
+        aliases=["mass-kick", "bulkkick", "bulk-kick"],
+        description="Kick members from the server.",
+    )
     @commands.has_permissions(kick_members=True)
     @commands.bot_has_permissions(kick_members=True)
     @app_commands.describe(
@@ -1228,28 +1333,66 @@ class ModerationBasicCog(
             return
 
         async with defer(ctx, stop_only=True):
-            # Check if guild for type checking
-            if not ctx.guild:
-                return
-            for member in (member1, member2, member3, member4, member5):
-                if not member:
-                    continue
-                try:
-                    await self.kick(ctx, member, reason=reason)
-                except Exception as e:
-                    command_error = commands.CommandInvokeError(e)
-                    await ctx.bot.on_command_error(ctx, command_error)
-                    continue
+            successful_kicks: list[tuple[discord.Member, str]] = []
+            failed_kicks: list[tuple[discord.Member, str]] = []
 
-    @commands.hybrid_command(name="massban", description="Ban users from the server.")
+            raw_users = {u for u in (member1, member2, member3, member4, member5) if u}
+            valid_users: set[discord.Member] = set([user for user in raw_users if user is not None])
+
+            config = await self.bot.fetch_guild_config(ctx.guild.id)
+            del_kwargs: dict[str, Any] = (
+                {"delete_after": 5.0}
+                if config and config.moderation_settings.delete_confirmation
+                else {}
+            )
+
+            if not valid_users:
+                embed = mod_embeds.mass_kicked(
+                    self.bot, successful_kicks, failed_kicks, ctx.author, reason
+                )
+                return await ctx.reply(ephemeral=True, embed=embed, **del_kwargs)
+
+            for user in valid_users:
+                status, _, dm_success, dm_error = await self._kick_member(
+                    ctx=ctx, member=user, reason=reason
+                )
+
+                if status == PunishmentResult.SUCCESS:
+                    successful_kicks.append(
+                        (user, dm_error or "DM Error" if not dm_success else "")
+                    )
+                elif status == PunishmentResult.NOT_IN_GUILD:
+                    failed_kicks.append((user, "Not in guild"))
+                elif status == PunishmentResult.CANT_MOD_SELF:
+                    failed_kicks.append((user, "Can't moderate yourself"))
+                elif status == PunishmentResult.NOT_ALLOWED:
+                    failed_kicks.append((user, "You aren't allowed to kick this user"))
+                elif status == PunishmentResult.BOT_NOT_ALLOWED:
+                    failed_kicks.append((user, "Titanium isn't allowed to kick this user"))
+                elif status == PunishmentResult.ALREADY_PUNISHING:
+                    failed_kicks.append((user, "User is already being punished"))
+                elif status == PunishmentResult.FORBIDDEN:
+                    failed_kicks.append((user, "Forbidden when trying to kick user"))
+                elif status == PunishmentResult.UNKNOWN:
+                    failed_kicks.append((user, "Unknown Discord error when trying to kick user"))
+
+            embed = mod_embeds.mass_kicked(
+                bot=self.bot,
+                successful_users=successful_kicks,
+                failed_users=failed_kicks,
+                creator=ctx.author,
+                reason=reason,
+            )
+            await ctx.reply(embed=embed, ephemeral=True)
+
+    @commands.hybrid_command(
+        name="massban",
+        aliases=["mass-ban", "bulkban", "bulk-ban"],
+        description="Ban users from the server.",
+    )
     @commands.has_permissions(ban_members=True)
     @commands.bot_has_permissions(ban_members=True)
     @app_commands.describe(
-        user1="The first user to ban.",
-        user2="The second user to ban.",
-        user3="The third user to ban",
-        user4="The fourth user to ban.",
-        user5="The fifth user to ban",
         duration="Optional: the duration of the ban (e.g., 10m, 1h, 2h30m).",
         reason="Optional: the reason for the ban.",
     )
@@ -1257,11 +1400,26 @@ class ModerationBasicCog(
     async def massban(
         self,
         ctx: commands.Context["TitaniumBot"],
-        user1: discord.Member,
-        user2: discord.Member,
-        user3: Optional[discord.Member] = None,
-        user4: Optional[discord.Member] = None,
-        user5: Optional[discord.Member] = None,
+        user1: discord.User,
+        user2: discord.User,
+        user3: Optional[discord.User] = None,
+        user4: Optional[discord.User] = None,
+        user5: Optional[discord.User] = None,
+        user6: Optional[discord.User] = None,
+        user7: Optional[discord.User] = None,
+        user8: Optional[discord.User] = None,
+        user9: Optional[discord.User] = None,
+        user10: Optional[discord.User] = None,
+        user11: Optional[discord.User] = None,
+        user12: Optional[discord.User] = None,
+        user13: Optional[discord.User] = None,
+        user14: Optional[discord.User] = None,
+        user15: Optional[discord.User] = None,
+        user16: Optional[discord.User] = None,
+        user17: Optional[discord.User] = None,
+        user18: Optional[discord.User] = None,
+        user19: Optional[discord.User] = None,
+        user20: Optional[discord.User] = None,
         duration: str = "",
         *,
         reason: str = "",
@@ -1274,15 +1432,138 @@ class ModerationBasicCog(
             if not ctx.guild:
                 return
 
-            for user in (user1, user2, user3, user4, user5):
-                if not user:
+            successful_bans: list[tuple[discord.User | discord.Member | discord.Object, str]] = []
+            failed_bans: list[tuple[discord.User | discord.Member | discord.Object, str]] = []
+
+            # fmt: off
+            raw_users = {
+                u for u in (user1, user2, user3, user4, user5, user6, user7, user8, user9, user10, 
+                            user11, user12, user13, user14, user15, user16, user17, user18, user19, user20) if u
+            }
+            # fmt: on
+
+            valid_users: set[discord.User] = set()
+            for user in raw_users:
+                if user.id == ctx.author.id:
+                    failed_bans.append((user, "Can't moderate yourself"))
                     continue
+
+                member = await get_or_fetch_member(self.bot, ctx.guild, user.id)
+
+                if isinstance(member, discord.Member):
+                    if not self._hierarchy_check(member, ctx.author, ctx):
+                        failed_bans.append((user, "You cannot ban this user"))
+                        continue
+                    if not self._bot_perms_check(member, ctx):
+                        failed_bans.append((user, "Titanium cannot ban this user"))
+                        continue
+
+                valid_users.add(user)
+
+            config = await self.bot.fetch_guild_config(ctx.guild.id)
+            del_kwargs: dict[str, Any] = (
+                {"delete_after": 5.0}
+                if config and config.moderation_settings.delete_confirmation
+                else {}
+            )
+
+            # Process duration
+            processed_duration = await DurationConverter().convert(ctx, duration)
+            processed_reason = reason
+
+            if not ctx.interaction and processed_duration is None:
+                processed_reason = duration + " " + reason if reason else duration
+
+            if not valid_users:
+                embed = mod_embeds.mass_banned(
+                    self.bot,
+                    successful_bans,
+                    failed_bans,
+                    ctx.author,
+                    processed_reason,
+                    processed_duration,
+                )
+                return await ctx.reply(ephemeral=True, embed=embed, **del_kwargs)
+
+            cases: dict[int, tuple[ModCase, bool, str]] = {}
+            async with get_session() as session:
+                manager = GuildModCaseManager(self.bot, ctx.guild, session)
+
                 try:
-                    await self.ban(ctx, user, duration=duration, reason=reason)
-                except Exception as e:
-                    command_error = commands.CommandInvokeError(e)
-                    await ctx.bot.on_command_error(ctx, command_error)
-                    continue
+                    for user in valid_users:
+                        case, dm_success, dm_error = await manager.create_case(
+                            action=CaseType.BAN,
+                            user=user,
+                            creator_user=ctx.author,
+                            reason=processed_reason,
+                            duration=processed_duration,
+                        )
+                        cases[user.id] = (case, dm_success, dm_error)
+
+                    ban_result = await ctx.guild.bulk_ban(
+                        users=valid_users,
+                        reason=f"@{ctx.author.name}: {processed_reason}",
+                        delete_message_seconds=config.moderation_settings.ban_days * 86400
+                        if config
+                        else 0,
+                    )
+
+                    for fail in ban_result.failed:
+                        failed_bans.append(
+                            (
+                                next((user for user in valid_users if user.id == fail.id), fail),
+                                "Failed to ban user",
+                            )
+                        )
+                        if fail.id in cases:
+                            await manager.delete_case(cases[fail.id][0].id, raise_not_found=False)
+
+                    for success in ban_result.banned:
+                        successful_bans.append(
+                            (
+                                next(
+                                    (user for user in valid_users if user.id == success.id),
+                                    success,
+                                ),
+                                (cases[success.id][2] or "DM Error")
+                                if success.id in cases and not cases[success.id][1]
+                                else "",
+                            )
+                        )
+
+                    embed = mod_embeds.mass_banned(
+                        self.bot,
+                        successful_bans,
+                        failed_bans,
+                        ctx.author,
+                        processed_reason,
+                        processed_duration,
+                    )
+                    return await ctx.reply(ephemeral=True, embed=embed, **del_kwargs)
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    error_msg = (
+                        "Titanium was not allowed to massban members"
+                        if isinstance(e, discord.Forbidden)
+                        else "Unknown Discord error while massbanning members"
+                    )
+
+                    await log_error(
+                        bot=self.bot,
+                        module="Moderation",
+                        guild_id=ctx.guild.id,
+                        error=error_msg,
+                        details=e.text,
+                    )
+
+                    for case, _, _ in cases.values():
+                        await manager.delete_case(case.id, raise_not_found=False)
+
+                    embed = (
+                        mod_embeds.forbidden(self.bot)
+                        if isinstance(e, discord.Forbidden)
+                        else mod_embeds.http_exception(self.bot)
+                    )
+                    return await ctx.reply(ephemeral=True, embed=embed, **del_kwargs)
 
 
 async def setup(bot: TitaniumBot) -> None:

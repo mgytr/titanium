@@ -41,9 +41,14 @@ class DurationConverter(commands.Converter):
 
 
 def duration_to_timestring(
-    start: datetime | Column[datetime], end: datetime | Column[datetime]
+    start: datetime | Column[datetime] | timedelta, end: datetime | Column[datetime] | None = None
 ) -> str:
-    delta = end - start
+    if isinstance(start, timedelta):
+        delta = start
+    elif end is not None:
+        delta = end - start
+    else:
+        raise ValueError("Start and end, or delta must be provided")
 
     seconds = delta.total_seconds()
     string = ""
