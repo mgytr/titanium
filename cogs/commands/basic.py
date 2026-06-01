@@ -118,10 +118,7 @@ class BasicCommandsCog(
             )
         )
 
-        await ctx.reply(
-            embed=embed,
-            view=view
-        )
+        await ctx.reply(embed=embed, view=view)
 
     # Host Info command
     @commands.hybrid_command(
