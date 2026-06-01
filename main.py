@@ -570,8 +570,15 @@ async def on_command_error(ctx: commands.Context["TitaniumBot"], error: commands
             colour=discord.Colour.red(),
         )
         await ctx.reply(embed=embed, ephemeral=True)
+    elif isinstance(error, commands.errors.BotMissingPermissions):
+        embed = discord.Embed(
+            title=f"{bot.error_emoji} Bot Missing Permissions",
+            description=error,
+            colour=discord.Colour.red(),
+        )
+        await ctx.reply(embed=embed, ephemeral=True)
     elif isinstance(error, commands.errors.NoPrivateMessage):
-        await ctx.reply(embed=guild_only(bot))
+        await ctx.reply(embed=guild_only(bot), ephemeral=True)
     elif isinstance(error, (commands.errors.BadArgument, commands.errors.ArgumentParsingError)):
         embed = discord.Embed(
             title=f"{bot.error_emoji} Bad Argument",
@@ -638,7 +645,14 @@ async def on_command_error(ctx: commands.Context["TitaniumBot"], error: commands
 async def on_app_command_error(
     interaction: discord.Interaction["TitaniumBot"], error: discord.app_commands.AppCommandError
 ):
-    if not isinstance(error, discord.app_commands.CommandNotFound):
+    if isinstance(error, discord.app_commands.CommandOnCooldown):
+        embed = discord.Embed(
+            title=f"{bot.error_emoji} Cooldown",
+            description=error,
+            colour=discord.Colour.red(),
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    elif not isinstance(error, discord.app_commands.CommandNotFound):
         try:
             error_id = await log_error(
                 bot=interaction.client,
