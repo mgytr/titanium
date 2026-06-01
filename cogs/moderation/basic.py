@@ -1391,7 +1391,7 @@ class ModerationBasicCog(
         description="Ban users from the server.",
     )
     @commands.has_permissions(ban_members=True)
-    @commands.bot_has_permissions(ban_members=True)
+    @commands.bot_has_permissions(ban_members=True, manage_guild=True)
     @app_commands.describe(
         duration="Optional: the duration of the ban (e.g., 10m, 1h, 2h30m).",
         reason="Optional: the reason for the ban.",
