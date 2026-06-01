@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING
+from datetime import timedelta
+from typing import TYPE_CHECKING, Optional
 
-from discord import ClientUser, Colour, Embed, Member, User
+from discord import ClientUser, Colour, Embed, Member, Object, User
 
 from lib.duration import duration_to_timestring
 from lib.sql.sql import ModCase
@@ -185,6 +186,147 @@ def unbanned(
     return embed
 
 
+def mass_warned(
+    bot: TitaniumBot,
+    successful_users: list[tuple[Member, str]],
+    failed_users: list[tuple[Member, str]],
+    creator: Member | User | ClientUser,
+    reason: str,
+    log: bool = False,
+) -> Embed:
+    embed = Embed(
+        title=f"{f'{bot.success_emoji} ' if not log else ''}Mass Warned", colour=Colour.green()
+    )
+    embed.description = (
+        f"**Processed:** `{len(successful_users + failed_users)} users`\n**Reason:** {reason}"
+    )
+
+    embed.add_field(
+        name="Successful Warns",
+        value="\n".join(
+            [f"{user[0].mention}{f': `{user[1]}`' if user[1] else ''}" for user in successful_users]
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="Failed Warns",
+        value="\n".join([f"{user[0].mention}: `{user[1]}`" for user in failed_users]),
+        inline=False,
+    )
+
+    embed.set_footer(text=f"@{creator.name}", icon_url=creator.display_avatar.url)
+    return embed
+
+
+def mass_muted(
+    bot: TitaniumBot,
+    successful_users: list[tuple[Member, str]],
+    failed_users: list[tuple[Member, str]],
+    creator: Member | User | ClientUser,
+    reason: str,
+    duration: timedelta | None,
+    log: bool = False,
+) -> Embed:
+    embed = Embed(
+        title=f"{f'{bot.success_emoji} ' if not log else ''}Mass Muted", colour=Colour.green()
+    )
+    embed.description = f"**Processed:** `{len(successful_users + failed_users)} users`\n**Duration:** {duration_to_timestring(duration) if duration else 'Permanent'}\n**Reason:** {reason}"
+
+    embed.add_field(
+        name="Successful Mutes",
+        value="\n".join(
+            [f"{user[0].mention}{f': `{user[1]}`' if user[1] else ''}" for user in successful_users]
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="Failed Mutes",
+        value="\n".join([f"{user[0].mention}: `{user[1]}`" for user in failed_users]),
+        inline=False,
+    )
+
+    embed.set_footer(text=f"@{creator.name}", icon_url=creator.display_avatar.url)
+    return embed
+
+
+def mass_kicked(
+    bot: TitaniumBot,
+    successful_users: list[tuple[Member, str]],
+    failed_users: list[tuple[Member, str]],
+    creator: Member | User | ClientUser,
+    reason: str,
+    log: bool = False,
+) -> Embed:
+    embed = Embed(
+        title=f"{f'{bot.success_emoji} ' if not log else ''}Mass Kicked", colour=Colour.green()
+    )
+    embed.description = (
+        f"**Processed:** `{len(successful_users + failed_users)} users`\n**Reason:** {reason}"
+    )
+
+    embed.add_field(
+        name="Successful Kicks",
+        value="\n".join(
+            [
+                f"{user[0].mention}{f': `{user[1]}`' if user[1] else ''}"
+                for user in successful_users
+            ],
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="Failed Kicks",
+        value="\n".join([f"{user[0].mention}: `{user[1]}`" for user in failed_users]),
+        inline=False,
+    )
+
+    embed.set_footer(text=f"@{creator.name}", icon_url=creator.display_avatar.url)
+    return embed
+
+
+def mass_banned(
+    bot: TitaniumBot,
+    successful_users: list[tuple[User | Member | Object, str]],
+    failed_users: list[tuple[User | Member | Object, str]],
+    creator: Member | User | ClientUser,
+    reason: str,
+    duration: timedelta | None,
+    log: bool = False,
+) -> Embed:
+    embed = Embed(
+        title=f"{f'{bot.success_emoji} ' if not log else ''}Mass Banned", colour=Colour.green()
+    )
+    embed.description = f"**Processed:** `{len(successful_users + failed_users)} users`\n**Duration:** {duration_to_timestring(duration) if duration else 'Permanent'}\n**Reason:** {reason}"
+
+    embed.add_field(
+        name="Successful Bans",
+        value="\n".join(
+            [
+                f"{user[0].mention}{f': `{user[1]}`' if user[1] else ''}"
+                if not isinstance(user[0], Object)
+                else f"`{user[0].id}`{f': `{user[1]}`' if user[1] else ''}"
+                for user in successful_users
+            ]
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="Failed Bans",
+        value="\n".join(
+            [
+                f"{user[0].mention}: `{user[1]}`"
+                if not isinstance(user[0], Object)
+                else f"`{user[0].id}`: `{user[1]}`"
+                for user in failed_users
+            ]
+        ),
+        inline=False,
+    )
+
+    embed.set_footer(text=f"@{creator.name}", icon_url=creator.display_avatar.url)
+    return embed
+
+
 # Purged
 def purged(
     bot: TitaniumBot,
@@ -311,19 +453,19 @@ def titanium_not_allowed(bot: TitaniumBot, user: Member | User | ClientUser) -> 
     return embed
 
 
-def forbidden(bot: TitaniumBot, user: Member | User | ClientUser) -> Embed:
+def forbidden(bot: TitaniumBot, user: Optional[Member | User | ClientUser] = None) -> Embed:
     embed = Embed(
         title=f"{bot.error_emoji} Error",
-        description=f"Titanium does not have permission to perform this action on {user.mention}.",
+        description=f"Titanium does not have permission to perform this action{f' on {user.mention}.' if user else '.'}",
         colour=Colour.red(),
     )
     return embed
 
 
-def http_exception(bot: TitaniumBot, user: Member | User | ClientUser) -> Embed:
+def http_exception(bot: TitaniumBot, user: Optional[Member | User | ClientUser] = None) -> Embed:
     embed = Embed(
         title=f"{bot.error_emoji} Error",
-        description=f"An error occurred while trying to perform this action on {user.mention}.",
+        description=f"An error occurred while trying to perform this action{f' on {user.mention}.' if user else '.'}",
         colour=Colour.red(),
     )
     return embed

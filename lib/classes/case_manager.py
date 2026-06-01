@@ -376,10 +376,12 @@ class GuildModCaseManager:
         else:
             raise ValueError("Unsupported case type")
 
-    async def delete_case(self, case_id: str) -> None:
+    async def delete_case(self, case_id: str, raise_not_found: bool = True) -> None:
         case = await self.get_case_by_id(case_id)
 
         if not case:
+            if not raise_not_found:
+                return
             raise CaseNotFoundException("Case not found")
 
         if not case.resolved:
