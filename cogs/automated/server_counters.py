@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING
 
 import discord
@@ -18,6 +19,7 @@ class ServerCountersCog(commands.Cog):
 
     def __init__(self, bot: TitaniumBot) -> None:
         self.bot = bot
+        self.logger = logging.getLogger("counters")
 
         # Start tasks
         self.channel_update.start()
@@ -38,17 +40,21 @@ class ServerCountersCog(commands.Cog):
         cached_guilds: dict[int, discord.GuildPreview] = {}
 
         for count_channel in channels:
+            self.logger.debug(f"Updating {count_channel.id}")
             guild = self.bot.get_guild(count_channel.guild_id)
 
             if not guild:
+                self.logger.debug("No guild")
                 continue
 
             guild_settings = await self.bot.fetch_guild_config(guild.id)
             if not guild_settings or not guild_settings.server_counters_enabled:
+                self.logger.debug("Counters are disabled")
                 continue
 
             discord_channel = guild.get_channel(count_channel.id)
             if not discord_channel or not isinstance(discord_channel, discord.VoiceChannel):
+                self.logger.debug("Not a voice channel")
                 continue
 
             members = list(guild.members)
@@ -56,6 +62,7 @@ class ServerCountersCog(commands.Cog):
                 count_channel.count_type == ServerCounterType.USERS
                 or count_channel.count_type == ServerCounterType.BOTS
             ) and not guild.chunked:
+                self.logger.debug("Guild is not chunked and it is required, chunking")
                 members = await guild.chunk()
 
             if (
@@ -63,9 +70,11 @@ class ServerCountersCog(commands.Cog):
                 or count_channel.count_type == ServerCounterType.OFFLINE_MEMBERS
             ):
                 if guild.id not in cached_guilds:
+                    self.logger.debug("Getting guild preview")
                     guild = await self.bot.fetch_guild_preview(guild.id)
                     cached_guilds[guild.id] = guild
                 else:
+                    self.logger.debug("Using cached guild preview")
                     guild = cached_guilds[guild.id]
 
             new_name = await resolve_counter(
@@ -73,10 +82,12 @@ class ServerCountersCog(commands.Cog):
             )
 
             if discord_channel.name == new_name:
+                self.logger.debug("No updates to name")
                 continue
 
             try:
                 await discord_channel.edit(name=new_name, reason="Automated server counter update")
+                self.logger.debug(f"Updated name: {new_name}")
             except discord.Forbidden as e:
                 await log_error(
                     bot=self.bot,
