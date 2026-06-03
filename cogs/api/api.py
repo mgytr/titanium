@@ -155,6 +155,7 @@ class APICog(commands.Cog):
         self.app.router.add_post("/user/{user_id}/guilds", self.mutual_guilds)
         self.app.router.add_get("/user/{user_id}/inguild/{guild_id}", self.in_guild)
 
+        self.app.router.add_get("/guild/{guild_id}/inguild", self.bot_in_guild)
         self.app.router.add_get("/guild/{guild_id}/info", self.guild_info)
         self.app.router.add_get("/guild/{guild_id}/errors", self.guild_errors)
         self.app.router.add_get("/guild/{guild_id}/leaderboard", self.guild_leaderboard)
@@ -333,6 +334,14 @@ class APICog(commands.Cog):
         else:
             return web.json_response({"in_guild": False}, status=200)
 
+    async def bot_in_guild(self, request: web.Request) -> web.Response:
+        guild_id = request.match_info.get("guild_id", "")
+
+        if not self.bot.get_guild(int(guild_id)):
+            return web.json_response({"in_guild": False}, status=200)
+
+        return web.json_response({"in_guild": True}, status=200)
+
     async def guild_info(self, request: web.Request) -> web.Response:
         guild_id = request.match_info.get("guild_id")
         if not guild_id or not guild_id.isdigit():
@@ -362,6 +371,7 @@ class APICog(commands.Cog):
                 "name": guild.name,
                 "icon": guild.icon.url if guild.icon else None,
                 "banner": guild.banner.url if guild.banner else None,
+                "splash": guild.discovery_splash.url if guild.discovery_splash else None,
                 "member_count": guild.member_count,
                 "roles": [
                     {
@@ -1041,12 +1051,37 @@ class APICog(commands.Cog):
             )
             leaderboard = result.scalars().all()
 
+        member_cache: dict[int, discord.Member | discord.User | None] = {}
+        missing_ids: list[int] = []
+
+        for entry in leaderboard:
+            uid = entry.user_id
+            user = guild.get_member(uid) or self.bot.get_user(uid)
+            if user:
+                member_cache[uid] = user
+            else:
+                missing_ids.append(uid)
+
+        if missing_ids:
+            queried = await guild.query_members(limit=100, user_ids=missing_ids)
+            for member in queried:
+                member_cache[member.id] = member
+
         return web.json_response(
             {
                 "total_count": total_count,
                 "leaderboard": [
                     {
                         "user_id": str(user_stat.user_id),
+                        "user_name": mem.name
+                        if (mem := member_cache.get(user_stat.user_id))
+                        else None,
+                        "user_display": mem.display_name
+                        if (mem := member_cache.get(user_stat.user_id))
+                        else None,
+                        "user_pfp": mem.display_avatar.url
+                        if (mem := member_cache.get(user_stat.user_id))
+                        else None,
                         "xp": str(user_stat.xp),
                         "level": user_stat.level,
                         "historical": user_stat.daily_snapshots,
