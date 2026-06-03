@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 class ImageFormatPicker(discord.ui.View):
     def __init__(self, message: discord.Message, quality: int):
-        super().__init__(timeout=5)
+        super().__init__(timeout=120)
 
         self.message: discord.Message = message
         self.quality = quality
