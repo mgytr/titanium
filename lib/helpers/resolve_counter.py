@@ -7,7 +7,10 @@ from lib.sql.sql import LeaderboardUserStats, get_session
 
 
 async def resolve_counter(
-    guild: discord.Guild | discord.GuildPreview, type: ServerCounterType, name: str
+    guild: discord.Guild | discord.GuildPreview,
+    type: ServerCounterType,
+    name: str,
+    members: list[discord.Member],
 ) -> str:
     """Resolve the server counter name for a channel."""
 
@@ -19,13 +22,13 @@ async def resolve_counter(
     elif type == ServerCounterType.USERS and isinstance(guild, discord.Guild):
         updated_value = 0
 
-        for member in guild.members:
+        for member in members:
             if not member.bot:
                 updated_value += 1
     elif type == ServerCounterType.BOTS and isinstance(guild, discord.Guild):
         updated_value = 0
 
-        for member in guild.members:
+        for member in members:
             if member.bot:
                 updated_value += 1
     elif type == ServerCounterType.ONLINE_MEMBERS and isinstance(guild, discord.GuildPreview):

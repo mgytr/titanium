@@ -51,6 +51,13 @@ class ServerCountersCog(commands.Cog):
             if not discord_channel or not isinstance(discord_channel, discord.VoiceChannel):
                 continue
 
+            members = list(guild.members)
+            if (
+                count_channel.count_type == ServerCounterType.USERS
+                or count_channel.count_type == ServerCounterType.BOTS
+            ) and not guild.chunked:
+                members = await guild.chunk()
+
             if (
                 count_channel.count_type == ServerCounterType.ONLINE_MEMBERS
                 or count_channel.count_type == ServerCounterType.OFFLINE_MEMBERS
@@ -61,7 +68,9 @@ class ServerCountersCog(commands.Cog):
                 else:
                     guild = cached_guilds[guild.id]
 
-            new_name = await resolve_counter(guild, count_channel.count_type, count_channel.name)
+            new_name = await resolve_counter(
+                guild, count_channel.count_type, count_channel.name, members
+            )
 
             if discord_channel.name == new_name:
                 continue

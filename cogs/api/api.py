@@ -1761,11 +1761,18 @@ class APICog(commands.Cog):
                                 guild_preview = await self.bot.fetch_guild_preview(guild.id)
 
                             new_name = await resolve_counter(
-                                guild_preview, new_channel.type, new_channel.name
+                                guild_preview, new_channel.type, new_channel.name, []
                             )
                         else:
+                            members = list(guild.members)
+                            if (
+                                new_channel.type == ServerCounterType.USERS
+                                or new_channel.type == ServerCounterType.BOTS
+                            ) and not guild.chunked:
+                                members = await guild.chunk()
+
                             new_name = await resolve_counter(
-                                guild, new_channel.type, new_channel.name
+                                guild, new_channel.type, new_channel.name, members
                             )
 
                         try:
@@ -1816,8 +1823,15 @@ class APICog(commands.Cog):
 
                             session.add(existing_channel)
                         else:
+                            members = list(guild.members)
+                            if (
+                                new_channel.type == ServerCounterType.USERS
+                                or new_channel.type == ServerCounterType.BOTS
+                            ) and not guild.chunked:
+                                members = await guild.chunk()
+
                             new_name = await resolve_counter(
-                                guild, new_channel.type, new_channel.name
+                                guild, new_channel.type, new_channel.name, members
                             )
 
                             try:
