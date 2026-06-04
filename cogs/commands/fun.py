@@ -20,7 +20,14 @@ class FunCommandsCog(commands.GroupCog, group_name="fun", description="Fun comma
 
     def __init__(self, bot: TitaniumBot) -> None:
         self.bot = bot
-
+    # horse command
+    @commands.hybrid_command(
+        name="horse", description="neigh"
+    )
+    async def horse(self, ctx: commands.Context["TitaniumBot"]):
+        await ctx.defer()
+        await ctx.reply('https://c.pxhere.com/images/ba/f4/5ee56e7218efeae74302f90f445a-1675988.jpg!d')
+    
     # 8 ball command
     @commands.hybrid_command(
         name="8ball", aliases=["8-ball"], description="Consult the mystical magic 8 ball."
