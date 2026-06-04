@@ -591,7 +591,7 @@ class GuildLeaderboardSettings(Base):
     notification_channel: Mapped[Optional[int]] = MappedColumn(BigInteger, nullable=True)
 
     web_leaderboard_enabled: Mapped[bool] = MappedColumn(Boolean, server_default=text("true"))
-    web_login_required: Mapped[bool] = MappedColumn(Boolean, server_default=text("false"))
+    web_login_required: Mapped[bool] = MappedColumn(Boolean, server_default=text("true"))
 
     levels: Mapped[list["LeaderboardLevels"]] = relationship(
         "LeaderboardLevels", back_populates="guild_settings", cascade="all, delete-orphan"
