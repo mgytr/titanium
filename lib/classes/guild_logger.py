@@ -61,7 +61,7 @@ LOGGING_EVENTS = [
     LoggingType(event="member_leave", name="Member Left", description="When a member leaves the server.", category="Members"),
     LoggingType(event="member_nickname_update", name="Member Nickname Updated", description="When a user changes their server nickname.", category="Members"),
     LoggingType(event="member_roles_update", name="Member Roles Updated", description="When a user's assigned roles changes.", category="Members"),
-    LoggingType(event="member_user_pfp_update", name="Member PFP Updated", description="When a user updates their PFP.", category="Members"),
+    LoggingType(event="member_user_pfp_update", name="Member PFP Updated", description="When a user updates their PFP. Use with caution as this can be quite a spammy event.", category="Members"),
     LoggingType(event="member_server_pfp_update", name="Member Server PFP Updated", description="When a user updates their server PFP.", category="Members"),
     LoggingType(event="member_ban", name="Member Banned", description="When a user is banned from the server.", category="Members"),
     LoggingType(event="member_unban", name="Member Unbanned", description="When a user is unbanned from the server.", category="Members"),
