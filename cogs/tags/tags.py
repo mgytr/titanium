@@ -193,6 +193,30 @@ class TagCommandsCog(commands.Cog):
             self.logger.debug(f"Found tag: {tag.name}")
             await ctx.reply(content=tag.content, allowed_mentions=discord.AllowedMentions.none())
             await self.push_tag_usage(tag)
+
+            # Send analytics manually
+            # The command technically wasn't found so no analytics will be sent otherwise
+            embed = discord.Embed(
+                title=f"`@{ctx.author.name}` ran a tag command",
+                description=f"`{ctx.clean_prefix}{tag.name}`",
+                timestamp=ctx.message.created_at,
+            )
+            embed.add_field(name="User", value=f"{ctx.author.mention} (`{ctx.author.id}`)")
+            if self.bot.user:
+                embed.set_author(
+                    name=f"{self.bot.user.name}#{self.bot.user.discriminator}",
+                    icon_url=self.bot.user.display_avatar,
+                )
+
+            webhook_url = os.getenv("ANALYTICS_WEBHOOK")
+            if webhook_url:
+                self.logger.debug("Sending analytics")
+                webhook = discord.Webhook.from_url(
+                    webhook_url,
+                    client=self.bot,
+                )
+                await webhook.send(embed=embed)
+            
             return True
 
         self.logger.debug("No tags found, skipping")
