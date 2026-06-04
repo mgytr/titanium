@@ -146,6 +146,7 @@ class TagCommandsCog(commands.Cog):
     def __init__(self, bot: TitaniumBot) -> None:
         bot.pre_not_found = self.command_not_found_hook
         self.bot = bot
+        self.logger: logging.Logger = logging.getLogger("tags")
 
     def __server_tag_available(
         self,
@@ -173,6 +174,7 @@ class TagCommandsCog(commands.Cog):
     ) -> bool:
         config = await self.bot.fetch_guild_config(ctx.guild.id) if ctx.guild else None
         if not self.__server_tag_available(ctx, config) or not ctx.guild:
+            self.logger.debug("Server tags unavailable")
             return False
 
         if not config or (
@@ -180,16 +182,20 @@ class TagCommandsCog(commands.Cog):
             or not config.tag_settings
             or not config.tag_settings.prefix_fallback
         ):
+            self.logger.debug("Prefix fallback disabled")
             return False
 
+        self.logger.debug(f"Searching tag: {ctx.invoked_with}")
         for tag in config.tag_settings.tags:
             if not (tag.name == ctx.invoked_with or str(tag.id) == ctx.invoked_with):
                 continue
 
+            self.logger.debug(f"Found tag: {tag.name}")
             await ctx.reply(content=tag.content, allowed_mentions=discord.AllowedMentions.none())
             await self.push_tag_usage(tag)
             return True
 
+        self.logger.debug("No tags found, skipping")
         return False
 
     async def tag_autocomplete(
