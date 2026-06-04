@@ -150,7 +150,7 @@ class TagModal(discord.ui.Modal, title="Tag Information"):
             if not config:
                 raise RuntimeError("Failed to get guild config")
 
-            if not config.moderation_enabled:
+            if not config.tags_enabled:
                 embed = discord.Embed(
                     title=f"{interaction.client.error_emoji} Disabled",
                     description="Tags have been disabled by a server admin.",
